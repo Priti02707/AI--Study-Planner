@@ -28,8 +28,8 @@ The system uses a weighted logic approach:
 
 ##  Example Output
 
-Math: 3.2 hours
-Physics: 2.1 hours
+Math: 3.2 hours,
+Physics: 2.1 hours and 
 English: 1.7 hours
 
 Focus more on: Math
