@@ -47,7 +47,8 @@ Python: 1.6 hours
 Focus more on: Datamining
 ```
 
-<img width="1187" height="222" alt="output png" src="https://github.com/user-attachments/assets/82fd2495-4819-469a-a74a-1e1aaef10c01" />
+<img width="415" height="247" alt="output" src="https://github.com/user-attachments/assets/b33177e7-fbdc-4fb6-ab27-a3615a98dad7" />
+
 
 The aim of this project is to help students improve their performance by focusing more on weak subjects and managing their study time efficiently.
 
