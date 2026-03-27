@@ -28,13 +28,26 @@ The system uses a weighted logic approach:
 
 ##  Example Output
 
-Math: 3.2 hours,
-Physics: 2.1 hours and 
-English: 1.7 hours
+```
+Enter number of subjects: 3
+Subject name: deep learning
+Marks: 8
+Subject name: datamining
+Marks: 7
+Subject name: python
+Marks: 9
+Enter daily study hours: 6
 
-Focus more on: Math
+Smart Study Plan:
 
-##  Purpose
+Deep Learning: 2.0 hours
+Datamining: 2.4 hours
+Python: 1.6 hours
+
+Focus more on: Datamining
+```
+
+<img width="1187" height="222" alt="output png" src="https://github.com/user-attachments/assets/82fd2495-4819-469a-a74a-1e1aaef10c01" />
 
 The aim of this project is to help students improve their performance by focusing more on weak subjects and managing their study time efficiently.
 
