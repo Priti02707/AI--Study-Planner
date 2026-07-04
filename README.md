@@ -1,4 +1,4 @@
-#  AI Study Planner (Smart Python Project)
+#  AI Study Planner 
 
 ##  Project Description
 
