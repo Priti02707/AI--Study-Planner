@@ -9,12 +9,12 @@ for i in range(n):
 
 total_time = float(input("Enter daily study hours: "))
 
-total_inverse = sum(100 - m for m in subjects.values())
+total_inverse = sum(10 - m for m in subjects.values())
 
 print("\n Smart Study Plan:\n")
 
 for sub, marks in subjects.items():
-    weight = (100 - marks) / total_inverse
+    weight = (10 - marks) / total_inverse
     time_alloc = weight * total_time
     print(f"{sub}: {round(time_alloc,2)} hours")
 
