@@ -3,7 +3,8 @@
 - Live URL: https://ai-study-planner-lac.vercel.app
 - Vercel project: https://vercel.com/priti-09/ai-study-planner
 - Workspace: `priti-09`
-- Production deployment: `dpl_3cDSrnNvtqowoQoxtXKLiMTBVBLs`
+- Production deployment: `dpl_HrmC8yRJJRn4boc7qocpFAPjZagi`
+- Application source commit: `728a5cf` (multiple study windows per weekday).
 - Function region: Singapore (`sin1`), matching the database.
 - Database: Neon PostgreSQL, `ai-study-planner-db`, free plan, Singapore region.
 - Published from local source using the authenticated Vercel CLI. GitHub automatic deployment is not connected.
@@ -34,6 +35,8 @@ Recheck the production app using:
 ```
 
 ## Deployment implementation
+
+The study windows update passed all 78 local application tests before publication. After deployment, production HTTP/database health, workspace sign-in, and all six dashboard pages passed verification without changing study records. Existing saved availability remains compatible.
 
 `api/index.py` exports the ASGI app from `server.py`. Vercel routes requests to that Python Function through `vercel.json`. Streamlit telemetry is disabled to avoid writes to Vercel's read-only home directory. Study data is durable in PostgreSQL; the server refuses an ephemeral SQLite fallback.
 

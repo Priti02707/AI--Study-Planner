@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
+## Study windows update — 2026-11-01
 
 - Added editable weekday availability with multiple windows per day, row creation/deletion, and weekday selection.
 - Preserved existing saved availability without a database migration.
 - Added overlap, incomplete-row, and time validation before previewing or replacing a plan; days off skip every window for that date.
 - Added regression coverage for split-window scheduling, preview/save behavior, and preserving a saved plan after invalid input.
+- Published to GitHub and Vercel production; all 78 local tests passed, and live health, sign-in, and all six dashboard pages were verified.
 
 ## Performance update — 2026-11-01
 
