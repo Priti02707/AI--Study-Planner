@@ -1,5 +1,10 @@
 # Changelog
 
+## Password manager support — 2026-11-01
+
+- Added username, current-password, and new-password autofill hints to registration, sign-in, and password-change fields.
+- Added guidance for manually saving a login when the browser does not offer a save prompt. Browser settings and heuristics still control that prompt.
+
 ## 3.1.0 · Study coach — 2026-11-01
 
 - Added guided setup for an exam goal, subjects/topics, estimated work, and daily windows without overwriting existing availability.

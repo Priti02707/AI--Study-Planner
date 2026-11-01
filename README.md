@@ -35,6 +35,8 @@ python python.py
 
 Choose **Create account**, enter your name, a username, and a password of at least 12 characters. You will enter your own empty planner. Returning students use **Sign in**. Use **Sign out** or **Change password** in the sidebar. Usernames ignore case; save your credentials because email recovery is not included.
 
+Sign-in and registration fields provide standard browser autofill hints. Chrome controls whether a Save password prompt appears; the app cannot force it. In Chrome, open **Google Password Manager → Settings** and enable **Offer to save passwords and passkeys**. You can also use **Google Password Manager → Passwords → Add** to save the app URL, your username, and your password manually.
+
 For guided setup, open **Study coach**. Enter your first subject, current marks, exam goal, syllabus topics, estimated work, and daily availability. Try a **Knowledge check**, then **Preview my starting plan → Accept and save plan**. Existing students can open the coach directly for recommendations and replanning.
 
 Knowledge checks ask you to explain a topic from memory, compare it with your notes or a saved card, and rate recall from 0–5. They are self-rated diagnostics, not automatically graded quizzes. A low rating with a correction of at least 20 characters creates a review card. The rating is saved as an assessment and influences future planning. Empty or very short explanations are rejected.

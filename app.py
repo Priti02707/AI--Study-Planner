@@ -428,10 +428,10 @@ def account_page(accounts):
     try:
         if mode == "Create account":
             with st.form("register_account"):
-                name = st.text_input("Your name", max_chars=80)
-                handle = st.text_input("Choose a username", max_chars=40)
-                password = st.text_input("Password", type="password", max_chars=128)
-                confirm = st.text_input("Confirm password", type="password", max_chars=128)
+                name = st.text_input("Your name", max_chars=80, autocomplete="name")
+                handle = st.text_input("Choose a username", max_chars=40, autocomplete="username")
+                password = st.text_input("Password", type="password", max_chars=128, autocomplete="new-password")
+                confirm = st.text_input("Confirm password", type="password", max_chars=128, autocomplete="new-password")
                 st.caption("Choose a password with at least 12 characters. Save your username and password; email recovery is not available yet.")
                 if st.form_submit_button("Create my account", type="primary"):
                     if password != confirm:
@@ -441,16 +441,17 @@ def account_page(accounts):
         elif mode == "Existing workspace":
             st.info("For the original project workspace only. New students should create an account for their own private planner.")
             with st.form("workspace_login"):
-                password = st.text_input("Workspace password", type="password", max_chars=128)
+                password = st.text_input("Workspace password", type="password", max_chars=128, autocomplete="current-password")
                 if st.form_submit_button("Open my planner", type="primary"):
                     enter_account(accounts.sign_in("", password, owner=True))
         else:
             with st.form("sign_in_account"):
-                handle = st.text_input("Username", max_chars=40)
-                password = st.text_input("Password", type="password", max_chars=128)
+                handle = st.text_input("Username", max_chars=40, autocomplete="username")
+                password = st.text_input("Password", type="password", max_chars=128, autocomplete="current-password")
                 if st.form_submit_button("Sign in", type="primary"):
                     enter_account(accounts.sign_in(handle, password))
             st.caption("New here? Choose Create account. Every student gets a separate private planner.")
+            st.caption("Your browser manages saved passwords. If no save prompt appears, add this site and your login in your browser’s password manager.")
     except ValueError as exc:
         st.error(str(exc))
 
@@ -490,9 +491,9 @@ def main():
         if not original:
             with st.expander("Change password"):
                 with st.form("change_password"):
-                    current = st.text_input("Current password", type="password", max_chars=128)
-                    new_password = st.text_input("New password", type="password", max_chars=128)
-                    confirm = st.text_input("Confirm new password", type="password", max_chars=128)
+                    current = st.text_input("Current password", type="password", max_chars=128, autocomplete="current-password")
+                    new_password = st.text_input("New password", type="password", max_chars=128, autocomplete="new-password")
+                    confirm = st.text_input("Confirm new password", type="password", max_chars=128, autocomplete="new-password")
                     if st.form_submit_button("Update password"):
                         try:
                             if new_password != confirm:
