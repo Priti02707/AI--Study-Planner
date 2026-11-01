@@ -42,7 +42,7 @@ For an explicit live registration/isolation check, run `scripts/verify_accounts.
 
 ## Deployment implementation
 
-The password-manager update passed 13 account/hosting interaction checks, and Vercel confirmed the deployment as ready. Standard autocomplete hints identify usernames, existing passwords, and new passwords. Chrome controls whether it offers to save a login; appearance of that browser prompt has not been verified. Manual saving instructions are included in README.md.
+The password-manager update passed 13 account/hosting interaction checks, and Vercel confirmed the deployment as ready. Standard autocomplete hints identify usernames, existing passwords, and new passwords. Chrome controls whether it offers to save a login; appearance of that browser prompt has not been verified. Manual saving instructions are in the [user guide](docs/guide.md#browser-password-manager).
 
 The Study coach update passed 108 application tests and 43 disposable PostgreSQL checks. GitHub Actions passed on Python 3.12 and 3.14. The knowledge check is self-rated, not AI-graded; adaptive AI question generation remains optional and requires a configured Gemini key. Core setup, recommendations, review cards, and plan preview/acceptance work offline.
 
@@ -54,7 +54,7 @@ The study windows update passed all 78 local application tests before publicatio
 
 The initial loading update passed all 80 local tests. Opening HTML loaded in 0.50 seconds in the post-deployment HTTP check, with a CDN cache hit; this is not a full browser-interactivity measurement. Production health, sign-in, and six-page navigation passed again. See [PERFORMANCE.md](PERFORMANCE.md) for measurements and network limits.
 
-Before each CLI deployment, run `.venv/bin/python scripts/prepare_static.py` to create the matching pinned Streamlit frontend in ignored `public/`. Vercel uploads that generated directory using `.vercelignore` rules and serves it from the CDN; it is excluded from the Python bundle. Do not omit preparation or change the Streamlit pin without regenerating assets.
+See [Deploy from a checkout](#deploy-from-a-checkout) for the required asset preparation and publishing commands. Vercel uploads the generated `public/` directory using `.vercelignore` rules and serves it from the CDN; it is excluded from the Python bundle.
 
 `api/index.py` exports the ASGI app from `server.py`. Vercel routes requests to that Python Function through `vercel.json`. Streamlit telemetry is disabled to avoid writes to Vercel's read-only home directory. Study data is durable in PostgreSQL; the server refuses an ephemeral SQLite fallback.
 
@@ -63,3 +63,30 @@ Registered accounts use separate PostgreSQL schemas; their transaction-local sea
 Function duration is 300 seconds; reconnection can reset sign-in/timer state, while saved records remain in PostgreSQL. Hosted uploads are limited to 3 MB. The ASGI interface is experimental in the pinned Streamlit version, so verify interaction after upgrades. Email verification and automated password recovery are not implemented; save your credentials.
 
 Local Vercel credentials, `.vercel/` project linkage, `.env.local`, and database credentials are excluded from Git and deployment uploads.
+
+## Deploy from a checkout
+
+Install the project dependencies using the README's local setup, then use an authenticated Vercel CLI. Keep the pinned Streamlit version: `server.py` uses its experimental `st.App` ASGI interface, exposed through `api/index.py`. Check both HTTP and WebSocket behavior after upgrades.
+
+1. Run `vercel login` and `vercel whoami`, then link the intended project:
+
+   ```bash
+   vercel link --yes --scope priti-09 --project ai-study-planner
+   ```
+
+2. Connect PostgreSQL through Vercel Marketplace or configure an existing database. Review the provider plan before provisioning. The application role must be able to create account schemas. Set the production `DATABASE_URL` through Vercel settings, for example `postgresql://user:password@host/database?sslmode=require`; never commit credentials.
+3. Optionally set `GEMINI_API_KEY`, `GEMINI_MODEL`, and `STUDY_PLANNER_TIMEZONE`. Keep `STUDY_PLANNER_PASSWORD` only if retaining access to the original workspace. New student accounts do not need that shared password.
+4. Prepare the matching browser assets and deploy from the installed environment:
+
+   ```bash
+   python scripts/prepare_static.py
+   vercel deploy --prod --scope priti-09
+   ```
+
+   Repeat asset preparation before each CLI deployment and whenever the Streamlit pin changes. CLI publication uses local source; it does not require a preceding GitHub push.
+
+5. Check `/api/health`, open the dashboard, sign in, and verify saving/reloading a subject and plan. The health route checks configuration and database connectivity. A successful local ASGI smoke check alone does not verify a hosted deployment.
+
+The function and database currently use Singapore to reduce database round trips. Schema setup is reused per process; checked database connections are pooled and duplicate reads are reused within a render, then invalidated on writes. See [PERFORMANCE.md](PERFORMANCE.md) for measurements and limits.
+
+References: [Streamlit ASGI release notes](https://docs.streamlit.io/develop/quick-reference/release-notes/2026), [Vercel Python entrypoints](https://vercel.com/docs/functions/runtimes/python), and [Vercel WebSocket support](https://vercel.com/changelog/websocket-support-is-now-in-public-beta).
