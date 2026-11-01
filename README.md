@@ -36,7 +36,7 @@ python python.py
 1. Open **Today** and choose **Load sample subjects**, or add your own in **Subjects**.
 2. Enter current marks, maximum marks, target score, and exam date/time.
 3. Break each subject into topics with estimated work, difficulty, and optional prerequisites.
-4. In **Weekly plan**, enter your weekday availability, session length, breaks, and days off. Generate a timetable.
+4. In **Weekly plan**, enter your weekday availability, session length, breaks, and days off. Add a row for each free window (for example, Monday at 08:00 for 60 minutes and Monday at 18:00 for 90 minutes). Generate a timetable.
 5. Record completed, partial, or skipped sessions in **Today**. Record quiz results in **Practice**, then regenerate your plan.
 
 Replanning preserves completed work and redistributes unfinished work into future available time. Record any partial work before regenerating.
@@ -218,7 +218,7 @@ PROJECT_ANALYSIS.md       Initial research and eight-project comparison
 ## Current limits and next steps
 
 - The scheduler is greedy; it can leave work unscheduled even when a more sophisticated arrangement exists. CP-SAT optimization is a future improvement.
-- One recurring free-time window per weekday is supported. Split daily windows are not yet editable in the dashboard.
+- Multiple recurring free-time windows per weekday are supported. Windows must not overlap and must finish before midnight. Delete rows or set minutes to zero for weekdays without study time; days off override all windows on that date.
 - A planning pass reserves the next review for each card. After rating a card, regenerate to include its next due review.
 - The focus timer lasts only for the browser session. Its elapsed time does not automatically mark work complete.
 - PDF import supports selectable text, up to 10 MB locally or 3 MB when hosted, and 100 pages, with per-page complexity/text limits. Scans need external OCR.

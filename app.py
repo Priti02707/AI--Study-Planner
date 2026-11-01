@@ -9,10 +9,10 @@ import streamlit as st
 
 from planner import ai
 from planner.access import deployment_errors, hosted, verify_password
+from planner.availability import WEEKDAYS, validate_windows, weekly_slots
 from planner.clock import now, timezone_name
 from planner.exports import calendar_export, csv_export
 from planner.materials import extract_pdf, passages, retrieve
-from planner.models import Slot
 from planner.storage import Store
 
 st.set_page_config(page_title="Study Planner · Your next step", page_icon="🌱", layout="wide")
@@ -142,35 +142,20 @@ def subjects_page(store):
                                     "Exam": t["exam"][:16].replace("T", " ")} for t in topics]), hide_index=True, width="stretch")
 
 
-def weekly_slots(start, days, availability, days_off):
-    result = []
-    for offset in range(days):
-        day = start + timedelta(days=offset)
-        if day in days_off:
-            continue
-        row = availability[day.weekday()]
-        if row["minutes"] > 0:
-            begin = datetime.combine(day, time.fromisoformat(row["start"]))
-            end = begin + timedelta(minutes=int(row["minutes"]))
-            if end.date() != day:
-                raise ValueError("Free study windows must finish before midnight. Shorten the window or start earlier.")
-            result.append(Slot(begin, end))
-    return result
-
-
 def plan_page(store):
     st.title("Make room for what matters")
     st.write("A realistic timetable that works around your week.")
     if not store.topics():
         st.info("Add subjects and topics first.")
         return
-    saved = store.setting("availability", [{"day": day, "start": "18:00", "minutes": 120} for day in
-                                             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]])
+    saved = store.setting("availability", [{"day": day, "start": "18:00", "minutes": 120} for day in WEEKDAYS])
     settings = store.setting("plan_options", {"days": 14, "session": 25, "break": 5})
     with st.form("availability"):
-        availability = st.data_editor(pd.DataFrame(saved), hide_index=True, disabled=["day"],
-                                      column_config={"minutes": st.column_config.NumberColumn("Free minutes", min_value=0, max_value=720, step=5),
-                                                     "start": st.column_config.TextColumn("Start time (HH:MM)")},
+        st.caption("Add a row for each study window, including multiple windows on the same weekday. Delete rows or set free minutes to zero for days without study time.")
+        availability = st.data_editor(pd.DataFrame(saved, columns=["day", "start", "minutes"]), hide_index=True, num_rows="dynamic",
+                                      column_config={"day": st.column_config.SelectboxColumn("Weekday", options=list(WEEKDAYS), required=True),
+                                                     "minutes": st.column_config.NumberColumn("Free minutes", min_value=0, max_value=720, step=5, required=True),
+                                                     "start": st.column_config.TextColumn("Start time (HH:MM)", required=True)},
                                       width="stretch", key="availability_editor")
         a, b, c = st.columns(3)
         start = a.date_input("Plan starts", value=now().date(), min_value=now().date())
@@ -184,14 +169,7 @@ def plan_page(store):
         generate = st.form_submit_button("Generate / replan", type="primary")
         simulate = st.form_submit_button("Preview only")
     if generate or simulate:
-        rows = availability.to_dict("records")
-        for row in rows:
-            try:
-                time.fromisoformat(str(row["start"]))
-            except (TypeError, ValueError):
-                raise ValueError("Use a valid start time such as 18:00.") from None
-            from planner.validation import integer
-            row["minutes"] = integer(row["minutes"], "Free minutes", 0, 720)
+        rows = validate_windows(availability.to_dict("records"))
         slots = weekly_slots(start, days, rows, off)
         plan = store.plan(slots, session, rest, save=generate)
         if generate:

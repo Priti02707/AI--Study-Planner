@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added editable weekday availability with multiple windows per day, row creation/deletion, and weekday selection.
+- Preserved existing saved availability without a database migration.
+- Added overlap, incomplete-row, and time validation before previewing or replacing a plan; days off skip every window for that date.
+- Added regression coverage for split-window scheduling, preview/save behavior, and preserving a saved plan after invalid input.
+
 ## Performance update — 2026-11-01
 
 - Reduced measured live page rendering from 9–18 seconds to 0.17–0.65 seconds in the six-page navigation check.

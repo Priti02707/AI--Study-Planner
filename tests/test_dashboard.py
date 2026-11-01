@@ -2,11 +2,14 @@
 import os
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from streamlit.testing.v1 import AppTest
 from planner.storage import Store
+from planner.clock import now
+from planner.availability import WEEKDAYS
 
 
 class DashboardTests(unittest.TestCase):
@@ -58,6 +61,41 @@ class DashboardTests(unittest.TestCase):
         self.button("Save topic").click().run()
         self.assertEqual(list(self.app.exception), [])
         self.assertEqual(Store(self.path).topics()[0]["name"], "SQL joins")
+
+    def test_split_windows_preview_and_save(self):
+        store = Store(self.path)
+        tomorrow = now().date() + timedelta(days=1)
+        subject = store.save_subject("Math", 5, 10, datetime.combine(tomorrow + timedelta(days=1), datetime.min.time()))
+        store.save_topic(subject, "Algebra", 240)
+        windows = [{"day": WEEKDAYS[tomorrow.weekday()], "start": "08:00", "minutes": 60},
+                   {"day": WEEKDAYS[tomorrow.weekday()], "start": "18:00", "minutes": 60}]
+        store.save_setting("availability", windows)
+        self.page("Weekly plan")
+        self.button("Preview only").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        self.assertEqual(store.sessions(), [])
+        self.button("Generate / replan").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        sessions = Store(self.path).sessions()
+        self.assertEqual({datetime.fromisoformat(s["start"]).hour for s in sessions}, {8, 18})
+        self.assertTrue(all(datetime.fromisoformat(s["end"]).hour in {8, 9, 18, 19} for s in sessions))
+        self.assertEqual(Store(self.path).setting("availability", []), windows)
+
+    def test_overlapping_windows_do_not_replace_a_saved_plan(self):
+        self.load_demo()
+        self.page("Weekly plan")
+        self.button("Generate / replan").click().run()
+        store = Store(self.path)
+        before = store.sessions()
+        windows = [{"day": "Monday", "start": "08:00", "minutes": 60},
+                   {"day": "Monday", "start": "08:30", "minutes": 60}]
+        store.save_setting("availability", windows)
+        self.page("Today")
+        self.page("Weekly plan")
+        self.button("Generate / replan").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        self.assertIn("overlap on Monday", self.app.error[0].value)
+        self.assertEqual(Store(self.path).sessions(), before)
 
     def test_invalid_marks_show_friendly_error(self):
         self.page("Subjects")
