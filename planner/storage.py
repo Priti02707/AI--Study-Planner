@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from planner.clock import now
-from planner.database import PostgresConnection, get_pool, initialize_postgres
+from planner.database import PostgresConnection, get_pool, initialize_postgres, select_workspace, workspace_schema
 from planner.models import Slot, Task
 from planner.reviews import next_review
 from planner.scheduler import schedule, subtract_busy
@@ -64,19 +64,23 @@ CREATE INDEX IF NOT EXISTS assessments_topic ON assessments(topic_id, id);
 
 
 class Store:
-    def __init__(self, path=None):
+    def __init__(self, path=None, workspace_id=None, schema=SCHEMA):
+        workspace_schema(workspace_id)
+        self.workspace_id = workspace_id
         self._read_cache = {}
         self.database_url = os.environ.get("DATABASE_URL", "") if path is None else ""
         self.path = Path(path or os.environ.get("STUDY_PLANNER_DB", "data/study_planner.sqlite3"))
+        if workspace_id is not None:
+            self.path = self.path.parent / "workspaces" / f"{workspace_id}.sqlite3"
         if not self.database_url:
             if os.environ.get("VERCEL") == "1":
                 raise ValueError("Connect PostgreSQL with DATABASE_URL before using this hosted planner.")
             self.path.parent.mkdir(parents=True, exist_ok=True)
         if self.database_url:
-            initialize_postgres(self.database_url, SCHEMA)
+            initialize_postgres(self.database_url, schema, workspace_id)
         else:
             with self.connect() as db:
-                db.executescript(SCHEMA)
+                db.executescript(schema)
 
     @contextmanager
     def _scope(self, db, write):
@@ -111,6 +115,7 @@ class Store:
                     connection.execute("SELECT pg_advisory_xact_lock(681204718)")
                 else:
                     connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+                select_workspace(connection, self.workspace_id)
                 with self._scope(PostgresConnection(connection), write) as db:
                     yield db
             return

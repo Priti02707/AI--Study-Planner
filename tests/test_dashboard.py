@@ -10,15 +10,22 @@ from streamlit.testing.v1 import AppTest
 from planner.storage import Store
 from planner.clock import now
 from planner.availability import WEEKDAYS
+from planner.accounts import Accounts
 
 
 class DashboardTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.path = Path(self.temp.name)/"ui.sqlite3"
-        self.environment = patch.dict(os.environ, {"STUDY_PLANNER_DB":str(self.path), "GEMINI_API_KEY":""})
+        registry_path = Path(self.temp.name)/"ui.sqlite3"
+        self.environment = patch.dict(os.environ, {"STUDY_PLANNER_DB":str(registry_path), "GEMINI_API_KEY":"", "DATABASE_URL": "", "VERCEL": "", "STUDY_PLANNER_PASSWORD": ""})
         self.environment.start()
-        self.app = AppTest.from_file(str(Path(__file__).resolve().parents[1]/"app.py"), default_timeout=20).run()
+        accounts = Accounts()
+        account_id = accounts.register("Test student", "student", "test-password-12345")
+        token = accounts.sign_in("student", "test-password-12345")
+        self.path = Store(workspace_id=account_id).path
+        self.app = AppTest.from_file(str(Path(__file__).resolve().parents[1]/"app.py"), default_timeout=20)
+        self.app.session_state["account_token"] = token
+        self.app.run()
 
     def tearDown(self):
         self.environment.stop()

@@ -79,6 +79,10 @@ def main():
                  origin=url, open_timeout=30, max_size=20*1024*1024) as socket:
         dashboard = Dashboard(socket)
         dashboard.rerun()
+        mode = dashboard.widget("radio", "Account")
+        assert "Create account" in mode.options and "Sign in" in mode.options
+        print("Registration and sign-in entry screen: passed")
+        dashboard.rerun([(mode.id, "string_value", "Existing workspace")])
         password_field = dashboard.widget("text_input", "Workspace password")
         submit = dashboard.widget("button", "Open my planner")
         print("Private workspace gate: passed")

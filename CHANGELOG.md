@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.0.0 · Student accounts — 2026-11-01
+
+- Added username registration, sign-in, sign-out, and password changes.
+- Separated study data into per-account PostgreSQL schemas or local SQLite files, including plans, notes, practice results, settings, and exports.
+- Preserved the original workspace behind its existing password without moving or assigning its records to a new registrant.
+- Added salted password hashes, 24-hour revocable sessions, persistent failed-sign-in throttling, and session-state clearing when switching accounts.
+- Added account lifecycle, dashboard interaction, and cross-account isolation checks for SQLite and PostgreSQL.
+- Verified 95 application tests, 35 PostgreSQL checks, and live registration, account switching, private data persistence, sign-out, and original workspace access.
+
 ## Initial loading update — 2026-11-01
 
 - Separated public Streamlit HTML, JavaScript, styles, and fonts from the Python function so Vercel can deliver them through its CDN.

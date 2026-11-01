@@ -1,4 +1,4 @@
-"""Single-owner access for hosted workspaces; local mode needs no password."""
+"""Hosted configuration and access to the preserved original workspace."""
 
 import hmac
 import os
@@ -20,6 +20,4 @@ def deployment_errors():
     url = os.environ.get("DATABASE_URL", "")
     if not url.startswith(("postgres://", "postgresql://")):
         errors.append("Connect a PostgreSQL database and set DATABASE_URL.")
-    if len(os.environ.get("STUDY_PLANNER_PASSWORD", "")) < 12:
-        errors.append("Set STUDY_PLANNER_PASSWORD to a private password of at least 12 characters.")
     return errors

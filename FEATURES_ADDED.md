@@ -15,10 +15,10 @@ The original project was a console script that distributed daily study hours usi
 | Progress | Active-time charts, completed-work indicators, quiz history, and a focus timer | See activity and study progress over time. |
 | Exports | CSV timetable, calendar `.ics`, and JSON data export | Take plans and records outside the app. |
 | Storage | SQLite locally and Neon PostgreSQL in production | Keep study records between visits and server restarts. |
-| Access and hosting | Private workspace password and a working Vercel deployment | Use the planner online. |
+| Accounts and hosting | Registration, username/password sign-in, sign-out, password changes, isolated study data, and a working Vercel deployment | Each student can keep a private planner online. |
 | Reliability | Input validation, duplicate detection, full-mark handling, exact minute allocation, tests, and CI configuration | Prevent the failures present in the original script. |
 | Performance | Connection reuse, one-time schema setup, per-render read reuse, atomic sample import, deferred backups, and aligned hosting region | Make navigation and data loading faster. |
 
-AI features are optional and are currently disabled in production until a Gemini API key is configured. The scheduling algorithm remains an explainable heuristic. This version uses one owner workspace password; it does not yet provide separate student accounts, notification reminders, or a trained grade-prediction model.
+AI features are optional and are currently disabled in production until a Gemini API key is configured. The scheduling algorithm remains an explainable heuristic. Each registered account has its own data; the original workspace remains accessible with its existing owner password. Email verification, password recovery, notification reminders, and trained grade prediction are not included.
 
 See [README.md](README.md) for usage and [PERFORMANCE.md](PERFORMANCE.md) for measured speed improvements.

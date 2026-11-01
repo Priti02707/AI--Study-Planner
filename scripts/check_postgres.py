@@ -20,6 +20,8 @@ def main():
     from planner.storage import Store
     from planner.database import clear_schema_cache, close_pools
     from tests.test_planner import StoreTests
+    from tests.test_accounts import AccountTests
+    from planner.accounts import Accounts
 
     with tempfile.TemporaryDirectory(prefix="study-planner-pg-") as directory:
         root = Path(directory)
@@ -46,9 +48,36 @@ def main():
                     with patch("planner.database.PostgresConnection.executescript", side_effect=AssertionError("Repeated schema setup")):
                         self.assertEqual(Store().topics()[0]["name"], "Algebra")
 
+            class PostgresAccountTests(AccountTests):
+                def setUp(self):
+                    clear_schema_cache()
+                    with psycopg.connect(url, autocommit=True) as connection:
+                        # All schemas belong to this disposable test cluster.
+                        names = connection.execute("SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'workspace_%'").fetchall()
+                        for (name,) in names:
+                            connection.execute(psycopg.sql.SQL("DROP SCHEMA {} CASCADE").format(psycopg.sql.Identifier(name)))
+                        connection.execute("DROP SCHEMA public CASCADE")
+                        connection.execute("CREATE SCHEMA public")
+                    super().setUp()
+
+                def test_workspace_search_path_does_not_fall_back_to_public(self):
+                    account_id = self.register()
+                    store = self.workspace(account_id)
+                    with store.connect(write=False) as db:
+                        row = db.execute("SELECT current_schema()").fetchone()
+                        self.assertEqual(row[0], f"workspace_{account_id}")
+                    # The registry exists in public, but is unreachable through
+                    # an account's ordinary unqualified database queries.
+                    with self.assertRaises(psycopg.errors.UndefinedTable):
+                        store.rows("SELECT * FROM app_accounts")
+                    token = self.accounts.sign_in("student.one", "correct-password-12345")
+                    self.assertEqual(self.accounts.identity(token)["id"], account_id)
+
             with patch.dict(os.environ, {"DATABASE_URL": url}), patch("tests.test_planner.Store", side_effect=lambda *args, **kwargs: Store()):
                 result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(PostgresTests))
-            return 0 if result.wasSuccessful() else 1
+            with patch.dict(os.environ, {"DATABASE_URL": url}), patch("tests.test_accounts.Accounts", side_effect=lambda *args, **kwargs: Accounts()), patch("tests.test_accounts.Store", side_effect=lambda *args, **kwargs: Store(workspace_id=kwargs.get("workspace_id"))):
+                accounts_result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(PostgresAccountTests))
+            return 0 if result.wasSuccessful() and accounts_result.wasSuccessful() else 1
         finally:
             close_pools()
             subprocess.run(["pg_ctl", "-D", str(cluster), "-m", "fast", "-w", "stop"],

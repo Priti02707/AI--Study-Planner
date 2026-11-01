@@ -12,12 +12,16 @@ from planner.storage import SCHEMA, Store
 
 
 class HostingTests(unittest.TestCase):
-    def test_hosted_setup_requires_durable_storage_and_password(self):
+    def test_hosted_setup_requires_durable_storage(self):
         with patch.dict(os.environ, {"VERCEL": "1", "DATABASE_URL": "", "STUDY_PLANNER_PASSWORD": ""}):
-            self.assertEqual(len(deployment_errors()), 2)
+            self.assertEqual(len(deployment_errors()), 1)
 
     def test_hosted_setup_accepts_postgres_and_strong_password(self):
         with patch.dict(os.environ, {"VERCEL": "1", "DATABASE_URL": "postgresql://localhost/test", "STUDY_PLANNER_PASSWORD": "test-password-12345"}):
+            self.assertEqual(deployment_errors(), [])
+
+    def test_registration_does_not_require_an_owner_password(self):
+        with patch.dict(os.environ, {"VERCEL": "1", "DATABASE_URL": "postgresql://localhost/test", "STUDY_PLANNER_PASSWORD": ""}):
             self.assertEqual(deployment_errors(), [])
 
     def test_hosted_store_does_not_fall_back_to_ephemeral_sqlite(self):
@@ -47,11 +51,11 @@ class HostingTests(unittest.TestCase):
 
     def test_login_gate_and_sign_out(self):
         with tempfile.TemporaryDirectory() as directory:
-            store = Store(Path(directory)/"local.sqlite3")
-            with patch.dict(os.environ, {"VERCEL": "1", "DATABASE_URL": "postgresql://test.invalid/db", "STUDY_PLANNER_PASSWORD": "test-private-password"}), patch("planner.storage.Store", return_value=store):
+            with patch.dict(os.environ, {"VERCEL": "", "DATABASE_URL": "", "STUDY_PLANNER_DB": str(Path(directory)/"local.sqlite3"), "STUDY_PLANNER_PASSWORD": "test-private-password"}):
                 app = AppTest.from_file(str(Path(__file__).resolve().parents[1]/"app.py"), default_timeout=20).run()
                 self.assertEqual(list(app.exception), [])
                 self.assertEqual(len(app.sidebar.radio), 0)
+                app.radio[0].set_value("Existing workspace").run()
                 app.text_input[0].set_value("wrong")
                 next(b for b in app.button if b.label == "Open my planner").click().run()
                 self.assertTrue(app.error)

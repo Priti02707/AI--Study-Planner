@@ -8,7 +8,8 @@ import pandas as pd
 import streamlit as st
 
 from planner import ai
-from planner.access import deployment_errors, hosted, verify_password
+from planner.access import deployment_errors, hosted
+from planner.accounts import Accounts, OWNER_ID
 from planner.availability import WEEKDAYS, validate_windows, weekly_slots
 from planner.clock import now, timezone_name
 from planner.exports import calendar_export, csv_export
@@ -399,6 +400,53 @@ def progress_page(store):
     st.caption("The JSON export includes your notes and study history. Keep it somewhere private. This version exports backups; restore is not yet supported in the interface.")
 
 
+def enter_account(token):
+    # Clear quiz drafts, uploaded material, focus timers, and widget selections
+    # before moving between accounts in the same browser session.
+    st.session_state.clear()
+    st.session_state["account_token"] = token
+    st.rerun()
+
+
+def account_page(accounts):
+    st.title("🌱 Your study space")
+    st.write("Your subjects, your schedule, your progress. Sign in to pick up where you left off.")
+    if "notice" in st.session_state:
+        st.success(st.session_state.pop("notice"))
+    choices = ["Sign in", "Create account"]
+    if len(os.environ.get("STUDY_PLANNER_PASSWORD", "")) >= 12:
+        choices.append("Existing workspace")
+    mode = st.radio("Account", choices, horizontal=True)
+    try:
+        if mode == "Create account":
+            with st.form("register_account"):
+                name = st.text_input("Your name", max_chars=80)
+                handle = st.text_input("Choose a username", max_chars=40)
+                password = st.text_input("Password", type="password", max_chars=128)
+                confirm = st.text_input("Confirm password", type="password", max_chars=128)
+                st.caption("Choose a password with at least 12 characters. Save your username and password; email recovery is not available yet.")
+                if st.form_submit_button("Create my account", type="primary"):
+                    if password != confirm:
+                        raise ValueError("The passwords do not match.")
+                    accounts.register(name, handle, password)
+                    enter_account(accounts.sign_in(handle, password))
+        elif mode == "Existing workspace":
+            st.info("For the original project workspace only. New students should create an account for their own private planner.")
+            with st.form("workspace_login"):
+                password = st.text_input("Workspace password", type="password", max_chars=128)
+                if st.form_submit_button("Open my planner", type="primary"):
+                    enter_account(accounts.sign_in("", password, owner=True))
+        else:
+            with st.form("sign_in_account"):
+                handle = st.text_input("Username", max_chars=40)
+                password = st.text_input("Password", type="password", max_chars=128)
+                if st.form_submit_button("Sign in", type="primary"):
+                    enter_account(accounts.sign_in(handle, password))
+            st.caption("New here? Choose Create account. Every student gets a separate private planner.")
+    except ValueError as exc:
+        st.error(str(exc))
+
+
 def main():
     errors = deployment_errors()
     if errors:
@@ -407,29 +455,45 @@ def main():
             st.error(error)
         st.info("Your deployment is running. Complete the project environment settings to enable this private workspace.")
         return
-    if hosted() or os.environ.get("STUDY_PLANNER_PASSWORD"):
-        if not st.session_state.get("authenticated"):
-            st.title("🌱 Your private study workspace")
-            with st.form("workspace_login"):
-                password = st.text_input("Workspace password", type="password")
-                if st.form_submit_button("Open my planner", type="primary"):
-                    if verify_password(password):
-                        st.session_state["authenticated"] = True
-                        st.rerun()
-                    else:
-                        st.error("That password did not match.")
-            return
-    store = Store()
+    accounts = Accounts()
+    token = st.session_state.get("account_token")
+    identity = accounts.identity(token)
+    if not identity:
+        if token:
+            st.session_state.clear()
+            st.warning("Your session expired. Please sign in again.")
+        account_page(accounts)
+        return
+    original = identity["id"] == OWNER_ID
+    store = Store(workspace_id=None if original else identity["id"])
     with st.sidebar:
         st.title("🌱 Study Planner")
         st.caption("Small steps. Stronger recall.")
         page = st.radio("Workspace", ["Today", "Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress"])
         st.divider()
         st.caption(f"{now():%A, %d %B %Y} · {timezone_name()}")
-        st.caption("Saved in PostgreSQL · private workspace" if store.database_url else "Saved locally · single-user workspace")
-        if st.session_state.get("authenticated") and st.button("Sign out"):
+        st.text(identity["display_name"])
+        st.caption("Original workspace" if original else f"Signed in as @{identity['username']}")
+        st.caption("Saved in PostgreSQL · private account" if store.database_url else "Saved locally · private account")
+        if st.button("Sign out"):
+            accounts.sign_out(token)
             st.session_state.clear()
             st.rerun()
+        if not original:
+            with st.expander("Change password"):
+                with st.form("change_password"):
+                    current = st.text_input("Current password", type="password", max_chars=128)
+                    new_password = st.text_input("New password", type="password", max_chars=128)
+                    confirm = st.text_input("Confirm new password", type="password", max_chars=128)
+                    if st.form_submit_button("Update password"):
+                        try:
+                            if new_password != confirm:
+                                raise ValueError("The new passwords do not match.")
+                            accounts.change_password(token, current, new_password)
+                            st.session_state.clear()
+                            flash("Password changed. Sign in with your new password.")
+                        except ValueError as exc:
+                            st.error(str(exc))
         st.caption("AI ready" if ai.configured() else "Core planner works without an API key")
     if "notice" in st.session_state:
         st.success(st.session_state.pop("notice"))

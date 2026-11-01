@@ -2,7 +2,7 @@
 
 **Live app:** https://ai-study-planner-lac.vercel.app · hosted in `priti-09/ai-study-planner`.
 
-The deployed workspace is password protected. Its generated password is stored locally as `STUDY_PLANNER_PASSWORD` in the ignored `.env.local` file. See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment and verification details.
+Create an account on the live app, then sign in with your own username and password. Every account has a separate private planner. The original project data remains under **Existing workspace**, protected by `STUDY_PLANNER_PASSWORD` in the ignored `.env.local` file. See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment and verification details.
 
 The performance update reduces measured page rendering from 9–18 seconds to 0.17–0.65 seconds in the live navigation check. See [PERFORMANCE.md](PERFORMANCE.md) for the method and limits, and [FEATURES_ADDED.md](FEATURES_ADDED.md) for a plain-language feature summary. Refresh an existing browser tab after deployment.
 
@@ -32,6 +32,8 @@ python python.py
 ```
 
 ## First five minutes
+
+Choose **Create account**, enter your name, a username, and a password of at least 12 characters. You will enter your own empty planner. Returning students use **Sign in**. Use **Sign out** or **Change password** in the sidebar. Usernames ignore case; save your credentials because email recovery is not included.
 
 1. Open **Today** and choose **Load sample subjects**, or add your own in **Subjects**.
 2. Enter current marks, maximum marks, target score, and exam date/time.
@@ -117,7 +119,7 @@ References: [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/st
 
 ## Saved data and timezone
 
-SQLite stores your subjects, topics, exams, sessions, assessments, cards, review history, imported text, and availability in `data/study_planner.sqlite3`. Nothing is lost when the process restarts.
+SQLite stores the account registry in `data/study_planner.sqlite3` and each account's subjects, topics, exams, sessions, assessments, cards, review history, imported text, and availability in `data/workspaces/<account-id>.sqlite3`. The original local workspace remains in `data/study_planner.sqlite3`. Saved records survive process restarts.
 
 Optional environment variables:
 
@@ -128,9 +130,15 @@ export STUDY_PLANNER_TIMEZONE="Asia/Kolkata"
 
 Dates are stored as wall times in the configured timezone. Calendar export converts them to UTC. Keep the same timezone for an existing database. If using a timezone with daylight-saving changes, check sessions around clock transitions manually; the scheduler does not resolve ambiguous or nonexistent local times.
 
-Local mode binds to `127.0.0.1`. Hosted mode requires PostgreSQL and a workspace password. This remains a **single-owner workspace**: everyone with its password shares the same study records. It does not create separate student accounts.
+Local mode binds to `127.0.0.1`. Hosted mode requires PostgreSQL. Accounts use separate PostgreSQL schemas with transaction-local search paths that exclude the original workspace. Locally, accounts use separate SQLite files. Registration creates a new empty workspace and cannot claim existing project data. The same subject names and topic IDs can exist independently in different accounts.
 
-Use **Progress → Export all my data** for a readable JSON snapshot. For a full restorable backup, stop the app and copy the SQLite file; restore that file while the app is stopped. JSON import is not included yet. Local data, virtual environments, and secrets are excluded from Git.
+Passwords use individually salted PBKDF2-HMAC-SHA256 hashes with 600,000 iterations. Server-side sessions expire after 24 hours, are revoked by sign-out, and all of an account's sessions are revoked when its password changes. Five failed sign-ins for a username trigger a 15-minute lockout. Browser session recycling may require an earlier sign-in. This version does not provide email verification, password recovery, social sign-in, or administrator account management.
+
+To open pre-account project data, set `STUDY_PLANNER_PASSWORD` to a password of at least 12 characters before launching, then choose **Existing workspace**. On the deployed project, the existing password continues to work. This compatibility workspace is separate from registered accounts.
+
+Use **Progress → Export all my data** for a readable JSON snapshot of your current account's study records; authentication records are excluded. For a full restorable local backup, stop the app and copy the entire `data/` directory (or the registry file and adjacent `workspaces/` directory at a custom database path). Restore while stopped. JSON import is not included yet. Local data, virtual environments, generated browser assets, and secrets are excluded from Git.
+
+Password hashing reference: [OWASP password storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 
 ## Vercel deployment
 
@@ -140,15 +148,14 @@ Required project environment variables:
 
 ```text
 DATABASE_URL=postgresql://user:password@host/database?sslmode=require
-STUDY_PLANNER_PASSWORD=a-private-password-at-least-12-characters
 ```
 
-Optional: `GEMINI_API_KEY`, `GEMINI_MODEL`, and `STUDY_PLANNER_TIMEZONE`.
+Optional: `GEMINI_API_KEY`, `GEMINI_MODEL`, `STUDY_PLANNER_TIMEZONE`, and `STUDY_PLANNER_PASSWORD` (only for access to the original shared workspace).
 
 1. Sign into Vercel with `vercel login` and verify with `vercel whoami`.
 2. Link/create the project in the intended scope: `vercel link --yes --scope priti-09 --project ai-study-planner` (the CLI may prompt to create a new project).
 3. Connect a PostgreSQL database through Vercel Marketplace, such as Neon. Select the free plan when available; do not enable a paid plan without reviewing it.
-4. Confirm the integration sets `DATABASE_URL` for the intended deployment environment. Add `STUDY_PLANNER_PASSWORD` as a sensitive environment variable through the dashboard or interactive `vercel env add`; do not commit it.
+4. Confirm the integration sets `DATABASE_URL` for the intended deployment environment. Keep `STUDY_PLANNER_PASSWORD` as a sensitive environment variable if retaining access to the original workspace; new student accounts do not need it. The database role must be able to create account schemas.
 5. Run `python scripts/prepare_static.py` with the installed project dependencies, then `vercel deploy --prod --scope priti-09`. The preparation step copies the pinned Streamlit browser assets into ignored `public/` for CDN delivery. Repeat it after changing Streamlit. CLI deployment can publish local committed source without first pushing GitHub.
 6. Verify `/api/health`, open the dashboard, sign in, and test saving/reloading a subject and plan. The health route checks required configuration and database connectivity.
 
@@ -208,6 +215,7 @@ planner/
   storage.py              Transactional SQLite persistence and replanning
   database.py             PostgreSQL adapter for durable hosted storage
   access.py               Hosted configuration and workspace access
+  accounts.py             Registration, password hashing, sessions, and throttling
   reviews.py              Adaptive SM-2 based review intervals
   materials.py            PDF extraction and local source retrieval
   ai.py                   Optional Gemini generation and citation checks
@@ -224,7 +232,7 @@ PROJECT_ANALYSIS.md       Initial research and eight-project comparison
 - A planning pass reserves the next review for each card. After rating a card, regenerate to include its next due review.
 - The focus timer lasts only for the browser session. Its elapsed time does not automatically mark work complete.
 - PDF import supports selectable text, up to 10 MB locally or 3 MB when hosted, and 100 pages, with per-page complexity/text limits. Scans need external OCR.
-- The application has no push notifications, separate student accounts, or trained grade prediction. Hosted access uses one private workspace password.
+- The application has no push notifications or trained grade prediction. Accounts have no email verification or automated password recovery yet.
 - AI requests are implemented and tested with mocks; live responses require a configured provider key.
 
 See [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md) for the original comparison and [CHANGELOG.md](CHANGELOG.md) for the implemented upgrade.
