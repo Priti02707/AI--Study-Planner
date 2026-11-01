@@ -3,8 +3,8 @@
 - Live URL: https://ai-study-planner-lac.vercel.app
 - Vercel project: https://vercel.com/priti-09/ai-study-planner
 - Workspace: `priti-09`
-- Production deployment: `dpl_7EuGWVPJx7n9yzcDsP2Kmw6Q1HVZ`
-- Application commit: `76b287c` (Study coach and adaptive practice).
+- Production deployment: `dpl_7EovhqrSsAw9itV774Dd3S6TAHyV`
+- Application commit: `3f085e6` (browser password-manager autofill support).
 - Includes guided setup, self-rated recall checks, practice recommendations, plan preview/acceptance, student accounts, multiple study windows, and CDN browser assets.
 - Function region: Singapore (`sin1`), matching the database.
 - Database: Neon PostgreSQL, `ai-study-planner-db`, free plan, Singapore region.
@@ -41,6 +41,8 @@ Recheck the production app using:
 For an explicit live registration/isolation check, run `scripts/verify_accounts.py` with the same URL. It creates two labelled QA accounts with unprinted random passwords, removes their test subjects, and signs them out; empty account records remain. It does not download production secrets or access pre-existing student accounts.
 
 ## Deployment implementation
+
+The password-manager update passed 13 account/hosting interaction checks, and Vercel confirmed the deployment as ready. Standard autocomplete hints identify usernames, existing passwords, and new passwords. Chrome controls whether it offers to save a login; appearance of that browser prompt has not been verified. Manual saving instructions are included in README.md.
 
 The Study coach update passed 108 application tests and 43 disposable PostgreSQL checks. GitHub Actions passed on Python 3.12 and 3.14. The knowledge check is self-rated, not AI-graded; adaptive AI question generation remains optional and requires a configured Gemini key. Core setup, recommendations, review cards, and plan preview/acceptance work offline.
 
