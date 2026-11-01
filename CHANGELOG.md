@@ -8,6 +8,7 @@
 - Updated optional AI quizzes to use the suggested level and recent mistakes alongside validated source excerpts.
 - Added a seven-day preview/accept flow that uses saved availability and preserves finished study history; stale previews are invalidated.
 - Added core, dashboard, PostgreSQL, and account-isolation regression checks.
+- Passed 108 application tests, 43 disposable PostgreSQL checks, and GitHub CI. Vercel reports the release ready and authenticated health passed; full live workflow verification was limited by network connection timeouts (see DEPLOYMENT.md).
 
 ## 3.0.0 · Student accounts — 2026-11-01
 

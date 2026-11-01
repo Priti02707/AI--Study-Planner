@@ -3,8 +3,9 @@
 - Live URL: https://ai-study-planner-lac.vercel.app
 - Vercel project: https://vercel.com/priti-09/ai-study-planner
 - Workspace: `priti-09`
-- Production deployment: `dpl_8kkKAcGmXabPckoPKiU8T98Qy8B5`
-- Includes student registration, sign-in/sign-out, isolated workspaces, multiple study windows, and CDN browser assets.
+- Production deployment: `dpl_7EuGWVPJx7n9yzcDsP2Kmw6Q1HVZ`
+- Application commit: `76b287c` (Study coach and adaptive practice).
+- Includes guided setup, self-rated recall checks, practice recommendations, plan preview/acceptance, student accounts, multiple study windows, and CDN browser assets.
 - Function region: Singapore (`sin1`), matching the database.
 - Database: Neon PostgreSQL, `ai-study-planner-db`, free plan, Singapore region.
 - Published from local source using the authenticated Vercel CLI. GitHub automatic deployment is not connected.
@@ -40,6 +41,12 @@ Recheck the production app using:
 For an explicit live registration/isolation check, run `scripts/verify_accounts.py` with the same URL. It creates two labelled QA accounts with unprinted random passwords, removes their test subjects, and signs them out; empty account records remain. It does not download production secrets or access pre-existing student accounts.
 
 ## Deployment implementation
+
+The Study coach update passed 108 application tests and 43 disposable PostgreSQL checks. GitHub Actions passed on Python 3.12 and 3.14. The knowledge check is self-rated, not AI-graded; adaptive AI question generation remains optional and requires a configured Gemini key. Core setup, recommendations, review cards, and plan preview/acceptance work offline.
+
+Vercel confirmed this release as `READY`, and its authenticated production health check returned `{"status":"ok","errors":[]}` through the project alias. Full live coach/account verification on this release could not complete: public-domain TCP connections and subsequent authenticated-alias probes timed out from the verification network before the clients could exercise the workflow. Local interaction tests cover setup, self-check, preview, acceptance, and stale-preview invalidation; the remaining live verification is not claimed as passed. No existing student records were modified during these probes.
+
+To explicitly test the live coach flow in new QA accounts, run `.venv/bin/python -u scripts/verify_accounts.py https://ai-study-planner-lac.vercel.app --coach`. It removes its test subjects, checks account isolation, and signs out. QA account metadata and setup settings remain; existing students' study records are untouched.
 
 The study windows update passed all 78 local application tests before publication. After deployment, production HTTP/database health, workspace sign-in, and all six dashboard pages passed verification without changing study records. Existing saved availability remains compatible.
 
