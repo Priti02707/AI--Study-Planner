@@ -12,6 +12,8 @@ from planner.access import deployment_errors, hosted
 from planner.accounts import Accounts, OWNER_ID
 from planner.availability import WEEKDAYS, validate_windows, weekly_slots
 from planner.clock import now, timezone_name
+from planner.coach import recommendations
+from planner.coach_ui import coach_page
 from planner.exports import calendar_export, csv_export
 from planner.materials import extract_pdf, passages, retrieve
 from planner.storage import Store
@@ -46,6 +48,7 @@ def session_table(sessions):
 def today_page(store):
     st.title("A little progress, every day.")
     st.write("Your next study session, with a clear reason to start.")
+    st.button("Open study coach", on_click=lambda: st.session_state.update(workspace_page="Study coach"))
     topics, sessions, subjects = store.topics(), store.sessions(), store.subjects()
     current = now()
     today = [s for s in sessions if s["start"][:10] == current.date().isoformat()]
@@ -246,12 +249,16 @@ def practice_page(store):
                 store.add_card(topic["id"], question, answer, source)
                 flash("Card added to your review queue.")
     with tab_quiz:
-        st.caption("Optional: relevant note excerpts are sent to Gemini when you generate questions. Check generated answers against the source.")
+        st.caption("Optional: relevant note excerpts and recent mistake text are sent to Gemini when you generate questions. Check generated answers against the source.")
         topic = choose_topic(topics, "ai_quiz_topic")
+        recommendation = next((item for item in recommendations(store) if item["topic"]["id"] == topic["id"]), None)
+        level = recommendation["level"] if recommendation else "Standard"
+        st.caption(f"Suggested next set: {level}. " + (recommendation["reason"] if recommendation else "Update your exam date in Subjects for current recommendations."))
         if st.button("Generate source-based quiz", disabled=not ai.configured()):
             with st.spinner("Preparing your questions…"):
                 sources = retrieve(topic["name"], store.documents(topic["subject_id"]))
-                st.session_state["quiz"] = {"topic_id": topic["id"], "questions": ai.generate_quiz(topic["name"], sources), "graded": False}
+                st.session_state["quiz"] = {"topic_id": topic["id"], "questions": ai.generate_quiz(topic["name"], sources, level,
+                                              recommendation["mistakes"] if recommendation else []), "level": level, "graded": False}
         quiz = st.session_state.get("quiz")
         if quiz and quiz["topic_id"] == topic["id"]:
             if not quiz["graded"]:
@@ -270,6 +277,7 @@ def practice_page(store):
             else:
                 correct = sum(q["correct"] == answer for q, answer in zip(quiz["questions"], quiz["choices"]))
                 st.success(f"Saved: {correct}/{len(quiz['questions'])}. Missed questions are in your mistake notebook.")
+                st.info("Your next question set uses updated results. Open Study coach to review recommendations and preview a revised timetable.")
                 for question in quiz["questions"]:
                     st.write(f"**{question['question']}**")
                     st.write(question["options"][question["correct"]])
@@ -469,7 +477,7 @@ def main():
     with st.sidebar:
         st.title("🌱 Study Planner")
         st.caption("Small steps. Stronger recall.")
-        page = st.radio("Workspace", ["Today", "Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress"])
+        page = st.radio("Workspace", ["Today", "Study coach", "Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress"], key="workspace_page")
         st.divider()
         st.caption(f"{now():%A, %d %B %Y} · {timezone_name()}")
         st.text(identity["display_name"])
@@ -497,7 +505,7 @@ def main():
         st.caption("AI ready" if ai.configured() else "Core planner works without an API key")
     if "notice" in st.session_state:
         st.success(st.session_state.pop("notice"))
-    pages = {"Today": today_page, "Subjects": subjects_page, "Weekly plan": plan_page,
+    pages = {"Today": today_page, "Study coach": lambda store: coach_page(store, flash), "Subjects": subjects_page, "Weekly plan": plan_page,
              "Practice": practice_page, "Notes & AI": notes_page, "Progress": progress_page}
     try:
         pages[page](store)

@@ -90,7 +90,7 @@ def main():
                          (submit.id, "trigger_value", True)])
         workspace = dashboard.widget("radio", "Workspace")
         print(f"Authenticated dashboard with hosted storage: passed ({dashboard.last_render_seconds:.2f}s)")
-        for page in ["Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress", "Today"]:
+        for page in ["Study coach", "Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress", "Today"]:
             dashboard.rerun([(workspace.id, "string_value", page)])
             workspace = dashboard.widget("radio", "Workspace")
             print(f"Dashboard {page}: passed ({dashboard.last_render_seconds:.2f}s)")

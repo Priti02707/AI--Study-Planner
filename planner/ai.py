@@ -89,14 +89,16 @@ def extract_topics(sources):
     return validated
 
 
-def generate_quiz(topic, sources):
+def generate_quiz(topic, sources, level="Standard", mistakes=()):
     if not sources:
         raise AIError("No matching source passages. Import notes about this topic first.")
+    if level not in {"Foundation", "Standard", "Challenge"}:
+        raise AIError("Choose a valid practice level.")
     schema = object_schema({"questions": {"type": "array", "maxItems": 5, "items": object_schema({
         "question": STRING, "options": {"type": "array", "items": STRING, "minItems": 4, "maxItems": 4},
         "correct": {"type": "integer", "minimum": 0, "maximum": 3}, "explanation": STRING, **SOURCE_FIELDS})}})
-    result = generate("Create 3 to 5 multiple-choice questions. Correct is a zero-based option index. Include verbatim evidence supporting each answer.",
-                      {"topic": topic, "excerpts": sources}, schema)
+    result = generate("Create 3 to 5 multiple-choice questions. At Foundation level check definitions and one-step examples; at Standard level check application; at Challenge level check multi-step reasoning within the supplied evidence. Address recent mistakes when supported by the excerpts. Correct is a zero-based option index. Include verbatim evidence supporting each answer.",
+                      {"topic": topic, "level": level, "recent_mistakes": [str(m)[:1200] for m in mistakes[:3]], "excerpts": sources}, schema)
     questions = result.get("questions")
     if not isinstance(questions, list) or not 1 <= len(questions) <= 5:
         raise AIError("AI did not return valid quiz questions.")

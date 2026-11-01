@@ -18,8 +18,9 @@ def change(dashboard, kind, label, value, field="string_value"):
     dashboard.rerun([(widget.id, field, value)])
 
 
-def submit(dashboard, label, fields=()):
+def submit(dashboard, label, fields=(), areas=()):
     widgets = [(dashboard.widget("text_input", name).id, "string_value", value) for name, value in fields]
+    widgets.extend((dashboard.widget("text_area", name).id, "string_value", value) for name, value in areas)
     widgets.append((dashboard.widget("button", label).id, "trigger_value", True))
     dashboard.rerun(widgets)
 
@@ -53,6 +54,20 @@ def remove_subject(dashboard, name):
     assert list(dashboard.widget("selectbox", "Edit subject").options) == ["Add a new subject"]
 
 
+def exercise_coach(dashboard, suffix):
+    name = f"QA coach {suffix}"
+    change(dashboard, "radio", "Workspace", "Study coach")
+    submit(dashboard, "Create my study map", [("First subject", name)],
+           [("Syllabus topics · one per line", "QA Foundations\nQA Applications")])
+    dashboard.widget("selectbox", "Check a topic")
+    submit(dashboard, "Save knowledge check", areas=[("Explain from memory", "I remember the basic definition but need to revisit the worked example.")])
+    submit(dashboard, "Preview my starting plan")
+    submit(dashboard, "Accept and save plan")
+    assert subjects(dashboard) == ["Add a new subject", name]
+    remove_subject(dashboard, name)
+    print("Guided setup, self-rated knowledge check, preview, and accepted plan: passed; coach test subject removed")
+
+
 def main():
     url = sys.argv[1].rstrip("/")
     parsed = urlsplit(url)
@@ -68,6 +83,8 @@ def main():
         dashboard.rerun()
         register(dashboard, first, password)
         print("First student registration: passed")
+        if "--coach" in sys.argv[2:]:
+            exercise_coach(dashboard, suffix)
         assert subjects(dashboard) == ["Add a new subject"]
         submit(dashboard, "Save subject", [("Subject name", first_subject)])
         assert first_subject in list(dashboard.widget("selectbox", "Edit subject").options)

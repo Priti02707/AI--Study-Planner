@@ -43,7 +43,7 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(list(self.app.exception), [])
 
     def test_empty_pages_are_usable(self):
-        for page in ["Today", "Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress"]:
+        for page in ["Today", "Study coach", "Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress"]:
             self.page(page)
 
     def test_demo_plan_and_all_pages(self):
@@ -68,6 +68,46 @@ class DashboardTests(unittest.TestCase):
         self.button("Save topic").click().run()
         self.assertEqual(list(self.app.exception), [])
         self.assertEqual(Store(self.path).topics()[0]["name"], "SQL joins")
+
+    def test_coach_setup_self_check_preview_and_accept(self):
+        self.button("Open study coach").click().run()
+        self.assertEqual(self.app.sidebar.radio[0].value, "Study coach")
+        next(w for w in self.app.text_input if w.label == "First subject").set_value("Python")
+        next(w for w in self.app.text_area if w.label == "Syllabus topics · one per line").set_value("Functions\nClasses")
+        self.button("Create my study map").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        self.assertEqual(len(Store(self.path).topics()), 2)
+        next(w for w in self.app.text_area if w.label == "Explain from memory").set_value("Functions group reusable statements and accept arguments.")
+        next(w for w in self.app.select_slider if w.label == "My recall after checking").set_value(1)
+        self.button("Save knowledge check").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        self.assertEqual(len(Store(self.path).rows("SELECT * FROM assessments")), 1)
+        self.button("Preview my starting plan").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        self.assertEqual(Store(self.path).sessions(), [])
+        self.button("Accept and save plan").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        self.assertGreater(len(Store(self.path).sessions()), 0)
+
+    def test_coach_rejects_invalid_setup_without_creating_data(self):
+        self.page("Study coach")
+        next(w for w in self.app.text_input if w.label == "First subject").set_value("Python")
+        next(w for w in self.app.text_area if w.label == "Syllabus topics · one per line").set_value("Functions\nfunctions")
+        self.button("Create my study map").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        self.assertTrue(self.app.error)
+        self.assertEqual(Store(self.path).subjects(), [])
+
+    def test_coach_invalidates_preview_after_study_records_change(self):
+        self.load_demo()
+        self.page("Study coach")
+        self.button("Preview my starting plan").click().run()
+        self.assertEqual(list(self.app.exception), [])
+        store = Store(self.path)
+        store.assessment(store.topics()[0]["id"], 1, 10)
+        self.app.run()
+        self.assertFalse(any(b.label == "Accept and save plan" for b in self.app.button))
+        self.assertEqual(Store(self.path).sessions(), [])
 
     def test_split_windows_preview_and_save(self):
         store = Store(self.path)

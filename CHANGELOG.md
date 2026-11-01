@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.1.0 · Study coach — 2026-11-01
+
+- Added guided setup for an exam goal, subjects/topics, estimated work, and daily windows without overwriting existing availability.
+- Added self-rated recall checks, saved assessment baselines, and corrective review cards from students' own corrections.
+- Added transparent next-practice recommendations using the latest three assessments and Foundation/Standard/Challenge levels.
+- Updated optional AI quizzes to use the suggested level and recent mistakes alongside validated source excerpts.
+- Added a seven-day preview/accept flow that uses saved availability and preserves finished study history; stale previews are invalidated.
+- Added core, dashboard, PostgreSQL, and account-isolation regression checks.
+
 ## 3.0.0 · Student accounts — 2026-11-01
 
 - Added username registration, sign-in, sign-out, and password changes.

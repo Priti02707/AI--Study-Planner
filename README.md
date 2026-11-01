@@ -35,6 +35,14 @@ python python.py
 
 Choose **Create account**, enter your name, a username, and a password of at least 12 characters. You will enter your own empty planner. Returning students use **Sign in**. Use **Sign out** or **Change password** in the sidebar. Usernames ignore case; save your credentials because email recovery is not included.
 
+For guided setup, open **Study coach**. Enter your first subject, current marks, exam goal, syllabus topics, estimated work, and daily availability. Try a **Knowledge check**, then **Preview my starting plan → Accept and save plan**. Existing students can open the coach directly for recommendations and replanning.
+
+Knowledge checks ask you to explain a topic from memory, compare it with your notes or a saved card, and rate recall from 0–5. They are self-rated diagnostics, not automatically graded quizzes. A low rating with a correction of at least 20 characters creates a review card. The rating is saved as an assessment and influences future planning. Empty or very short explanations are rejected.
+
+Next-practice recommendations use up to three recent topic assessments, weighted 3:2:1 from newest to oldest. Below 50% suggests **Foundation**, 50–79% **Standard**, and 80% or above **Challenge**. Subject marks are the fallback. This is a transparent heuristic, not an estimate of exam performance. The planner continues using its existing latest-score priority formula. Optional AI question sets use the suggested level and recent mistake text while retaining source evidence checks.
+
+The coach previews seven days using saved windows, breaks, and days off. Previewing does not change sessions; accepting recalculates from current records and preserves finished history. Previews expire after five minutes or changes to planning inputs. No topic import or AI call is required for manual setup, self-checks, or recommendations.
+
 1. Open **Today** and choose **Load sample subjects**, or add your own in **Subjects**.
 2. Enter current marks, maximum marks, target score, and exam date/time.
 3. Break each subject into topics with estimated work, difficulty, and optional prerequisites.
@@ -48,6 +56,7 @@ Replanning preserves completed work and redistributes unfinished work into futur
 | Workspace | Features |
 | --- | --- |
 | Today | Today's sessions, overdue alerts, weak-topic suggestions, completed/partial/skipped work |
+| Study coach | Guided setup, self-rated recall checks, practice levels, corrective cards, and a starting plan to preview and accept |
 | Subjects | Add/edit subjects, normalized marks, target scores, exam dates/times, topics, difficulty, cycle-checked prerequisites |
 | Weekly plan | Weekday free-time windows, days off, configurable focus/break lengths, preview, replanning, shortfall details |
 | Practice | Manual quiz scores, flashcards, adaptive review queue, optional AI multiple-choice quizzes |
@@ -109,7 +118,7 @@ In PowerShell, use `$env:GEMINI_API_KEY="your-key"` and `$env:GEMINI_MODEL="gemi
 The model name is configurable because provider availability can change. `.env.example` documents the settings; `.env` files are **not** loaded automatically. Keys are read on the server and are never written to the database or repository.
 
 - AI calls happen only when you press a generation/answer button.
-- Selected note excerpts and your request are sent to Google's Gemini API. This may use your provider quota.
+- Selected note excerpts and your request are sent to Google's Gemini API. Adaptive quizzes also include up to three recent mistake prompts, which can include self-check explanations. This may use your provider quota.
 - Topic generation uses up to the first 30 document excerpts; large documents may need splitting.
 - Quiz generation and tutoring use local lexical retrieval to select relevant page excerpts. This is a lightweight retrieval-augmented workflow, without embeddings or a vector database.
 - Responses use structured JSON. Source IDs and evidence excerpts are checked against the material supplied to the model. These checks do not prove that an answer is correct; inspect source pages and review AI topic suggestions before importing.

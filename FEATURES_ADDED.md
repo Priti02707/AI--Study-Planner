@@ -4,14 +4,15 @@ The original project was a console script that distributed daily study hours usi
 
 | Area | Added capability | How it helps |
 | --- | --- | --- |
-| Dashboard | Today, Subjects, Weekly plan, Practice, Notes & AI, and Progress pages | Manage the full study workflow in a browser. |
+| Dashboard | Today, Study coach, Subjects, Weekly plan, Practice, Notes & AI, and Progress pages | Manage the full study workflow in a browser. |
+| Study coach | Guided setup, self-rated knowledge checks, corrective review cards, practice recommendations, and plan preview/acceptance | Connect assessment results with the next practical study action. |
 | Subjects and topics | Exam dates/times, normalized marks, target goals, topic difficulty, estimated work, and prerequisites | Turn broad subjects into actionable work. |
 | Scheduling | Multiple free windows per weekday, days off, configurable breaks/session lengths, priorities, and explanations | Build a timetable that fits real availability. |
 | Adaptive planning | Completed/partial/skipped work, recent quiz feedback, duration adaptation, and replanning | Adjust future work while retaining completed history. |
 | Revision | Recall cards and SM-2 based review intervals | Keep a queue of material to revisit. |
 | Practice | Manual quiz logging and a mistake notebook | Track weaknesses at topic level. |
 | Notes | PDF/text import, page viewing, and local passage search | Keep relevant material connected to study topics. |
-| Optional AI | Syllabus-to-topic suggestions, source-based multiple-choice quizzes, and answers from notes | Assist preparation when a Gemini API key is configured. |
+| Optional AI | Syllabus-to-topic suggestions, source-based quizzes with adaptive next-set difficulty and recent mistakes, and answers from notes | Assist preparation when a Gemini API key is configured. |
 | Progress | Active-time charts, completed-work indicators, quiz history, and a focus timer | See activity and study progress over time. |
 | Exports | CSV timetable, calendar `.ics`, and JSON data export | Take plans and records outside the app. |
 | Storage | SQLite locally and Neon PostgreSQL in production | Keep study records between visits and server restarts. |

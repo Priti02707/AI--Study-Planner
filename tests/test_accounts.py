@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from planner.accounts import Accounts, OWNER_ID, SESSION_SECONDS, check_password, hash_password
 from planner.clock import now
+from planner.coach import quick_start, recommendations, record_self_check
 from planner.database import workspace_schema
 from planner.models import Slot
 from planner.storage import Store
@@ -165,6 +166,16 @@ class AccountTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.workspace(value)
         self.assertEqual(workspace_schema(None), "public")
+
+    def test_coach_setup_and_diagnostics_are_private_to_each_account(self):
+        alice, bob = self.workspace(self.register()), self.workspace(self.register("student.two"))
+        for store in [alice, bob]:
+            quick_start(store, "Python", now() + timedelta(days=10), 80, "Functions", 60, "18:00", 60, 70)
+        topic_id = alice.topics()[0]["id"]
+        record_self_check(alice, topic_id, "I cannot yet explain how functions receive their arguments.", 0)
+        self.assertEqual(recommendations(self.workspace(alice.workspace_id))[0]["level"], "Foundation")
+        self.assertEqual(recommendations(self.workspace(bob.workspace_id))[0]["level"], "Standard")
+        self.assertEqual(self.workspace(bob.workspace_id).rows("SELECT * FROM assessments"), [])
 
 
 if __name__ == "__main__":

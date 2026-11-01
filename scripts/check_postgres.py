@@ -21,6 +21,7 @@ def main():
     from planner.database import clear_schema_cache, close_pools
     from tests.test_planner import StoreTests
     from tests.test_accounts import AccountTests
+    from tests.test_coach import CoachTests
     from planner.accounts import Accounts
 
     with tempfile.TemporaryDirectory(prefix="study-planner-pg-") as directory:
@@ -77,7 +78,17 @@ def main():
                 result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(PostgresTests))
             with patch.dict(os.environ, {"DATABASE_URL": url}), patch("tests.test_accounts.Accounts", side_effect=lambda *args, **kwargs: Accounts()), patch("tests.test_accounts.Store", side_effect=lambda *args, **kwargs: Store(workspace_id=kwargs.get("workspace_id"))):
                 accounts_result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(PostgresAccountTests))
-            return 0 if result.wasSuccessful() and accounts_result.wasSuccessful() else 1
+            class PostgresCoachTests(CoachTests):
+                def setUp(self):
+                    clear_schema_cache()
+                    with psycopg.connect(url, autocommit=True) as connection:
+                        connection.execute("DROP SCHEMA public CASCADE")
+                        connection.execute("CREATE SCHEMA public")
+                    super().setUp()
+
+            with patch.dict(os.environ, {"DATABASE_URL": url}), patch("tests.test_coach.Store", side_effect=lambda *args, **kwargs: Store()):
+                coach_result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(PostgresCoachTests))
+            return 0 if result.wasSuccessful() and accounts_result.wasSuccessful() and coach_result.wasSuccessful() else 1
         finally:
             close_pools()
             subprocess.run(["pg_ctl", "-D", str(cluster), "-m", "fast", "-w", "stop"],
