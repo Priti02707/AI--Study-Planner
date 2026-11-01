@@ -5,15 +5,19 @@ import math
 import os
 import sqlite3
 from contextlib import contextmanager
+from contextvars import ContextVar
+from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from planner.clock import now
-from planner.database import PostgresConnection
+from planner.database import PostgresConnection, get_pool, initialize_postgres
 from planner.models import Slot, Task
 from planner.reviews import next_review
 from planner.scheduler import schedule, subtract_busy
 from planner.validation import integer, number, score, text
+
+_transaction = ContextVar("study_planner_transaction", default=None)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS subjects (
@@ -61,39 +65,73 @@ CREATE INDEX IF NOT EXISTS assessments_topic ON assessments(topic_id, id);
 
 class Store:
     def __init__(self, path=None):
+        self._read_cache = {}
         self.database_url = os.environ.get("DATABASE_URL", "") if path is None else ""
         self.path = Path(path or os.environ.get("STUDY_PLANNER_DB", "data/study_planner.sqlite3"))
         if not self.database_url:
             if os.environ.get("VERCEL") == "1":
                 raise ValueError("Connect PostgreSQL with DATABASE_URL before using this hosted planner.")
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as db:
-            db.executescript(SCHEMA)
+        if self.database_url:
+            initialize_postgres(self.database_url, SCHEMA)
+        else:
+            with self.connect() as db:
+                db.executescript(SCHEMA)
+
+    @contextmanager
+    def _scope(self, db, write):
+        if write:
+            self._read_cache.clear()
+        token = _transaction.set((self, db, write))
+        try:
+            yield db
+        finally:
+            _transaction.reset(token)
+            if write:
+                self._read_cache.clear()
 
     @contextmanager
     def connect(self, write=True):
+        active = _transaction.get()
+        if active and active[0] is self:
+            if write and not active[2]:
+                raise RuntimeError("Cannot write inside a read-only operation.")
+            if write:
+                self._read_cache.clear()
+            try:
+                yield active[1]
+            finally:
+                if write:
+                    self._read_cache.clear()
+            return
         if self.database_url:
-            import psycopg
-            with psycopg.connect(self.database_url, connect_timeout=10) as connection:
+            with get_pool(self.database_url).connection() as connection:
                 if write:
                     # Shared by all app writes, including concurrent serverless instances.
                     connection.execute("SELECT pg_advisory_xact_lock(681204718)")
                 else:
                     connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-                yield PostgresConnection(connection)
+                with self._scope(PostgresConnection(connection), write) as db:
+                    yield db
             return
         db = sqlite3.connect(self.path, timeout=15)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
         try:
             with db:
-                yield db
+                with self._scope(db, write):
+                    yield db
         finally:
             db.close()
 
     def rows(self, query, params=()):
+        key = (query, tuple(params))
+        if key in self._read_cache:
+            return deepcopy(self._read_cache[key])
         with self.connect(write=False) as db:
-            return [dict(row) for row in db.execute(query, params)]
+            result = [dict(row) for row in db.execute(query, params)]
+        self._read_cache[key] = result
+        return deepcopy(result)
 
     def setting(self, key, default):
         rows = self.rows("SELECT value FROM settings WHERE key=?", (key,))
@@ -334,18 +372,19 @@ class Store:
                                "tables": {table: [dict(r) for r in db.execute(f"SELECT * FROM {table}")] for table in tables}}, indent=2)
 
     def seed_demo(self):
-        if self.subjects():
-            raise ValueError("Demo data can only be loaded into an empty planner.")
-        today = now()
-        for name, marks, days, topics in [
-            ("Python", 8, 10, ["Functions and scope", "Classes and objects"]),
-            ("Data Mining", 5, 6, ["Classification", "Clustering"]),
-            ("Deep Learning", 7, 14, ["Neural networks", "Backpropagation"]),
-        ]:
-            subject_id = self.save_subject(name, marks, 10, (today + timedelta(days=days)).replace(hour=9, minute=0), 85)
-            previous = None
-            for topic in topics:
-                topic_id = self.save_topic(subject_id, topic, 75, 3, previous)
-                self.add_card(topic_id, f"Explain {topic.lower()} from memory.",
-                              "Describe the key idea, give one example, and check your notes for missing details.", "Demo self-check prompt")
-                previous = topic_id
+        with self.connect():
+            if self.subjects():
+                raise ValueError("Demo data can only be loaded into an empty planner.")
+            today = now()
+            for name, marks, days, topics in [
+                ("Python", 8, 10, ["Functions and scope", "Classes and objects"]),
+                ("Data Mining", 5, 6, ["Classification", "Clustering"]),
+                ("Deep Learning", 7, 14, ["Neural networks", "Backpropagation"]),
+            ]:
+                subject_id = self.save_subject(name, marks, 10, (today + timedelta(days=days)).replace(hour=9, minute=0), 85)
+                previous = None
+                for topic in topics:
+                    topic_id = self.save_topic(subject_id, topic, 75, 3, previous)
+                    self.add_card(topic_id, f"Explain {topic.lower()} from memory.",
+                                  "Describe the key idea, give one example, and check your notes for missing details.", "Demo self-check prompt")
+                    previous = topic_id

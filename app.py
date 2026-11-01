@@ -417,7 +417,7 @@ def progress_page(store):
                 st.write(result["correction"])
     if not finished and not results:
         st.info("Your progress appears here after you record study work or a quiz.")
-    st.download_button("Export all my data (JSON)", store.backup(), "study-planner-backup.json", "application/json")
+    st.download_button("Export all my data (JSON)", store.backup, "study-planner-backup.json", "application/json")
     st.caption("The JSON export includes your notes and study history. Keep it somewhere private. This version exports backups; restore is not yet supported in the interface.")
 
 

@@ -23,6 +23,7 @@ class Dashboard:
         self.page_hash = ""
 
     def rerun(self, widgets=()):
+        started = time.monotonic()
         message = BackMsg()
         state = message.rerun_script
         state.page_script_hash = self.page_hash
@@ -49,7 +50,8 @@ class Dashboard:
                     raise RuntimeError("Deployment script could not compile.")
                 if message.script_finished in (ForwardMsg.FINISHED_SUCCESSFULLY,
                                                 ForwardMsg.FINISHED_FRAGMENT_RUN_SUCCESSFULLY):
-                    return
+                    self.last_render_seconds = time.monotonic() - started
+                    return self.last_render_seconds
                 self.elements = []
         raise RuntimeError("Dashboard did not finish rendering.")
 
@@ -83,11 +85,11 @@ def main():
         dashboard.rerun([(password_field.id, "string_value", password),
                          (submit.id, "trigger_value", True)])
         workspace = dashboard.widget("radio", "Workspace")
-        print("Authenticated dashboard with hosted storage: passed")
+        print(f"Authenticated dashboard with hosted storage: passed ({dashboard.last_render_seconds:.2f}s)")
         for page in ["Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress", "Today"]:
             dashboard.rerun([(workspace.id, "string_value", page)])
             workspace = dashboard.widget("radio", "Workspace")
-            print(f"Dashboard {page}: passed")
+            print(f"Dashboard {page}: passed ({dashboard.last_render_seconds:.2f}s)")
     print("Production verification completed without changing study records.")
 
 

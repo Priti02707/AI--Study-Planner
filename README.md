@@ -4,6 +4,8 @@
 
 The deployed workspace is password protected. Its generated password is stored locally as `STUDY_PLANNER_PASSWORD` in the ignored `.env.local` file. See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment and verification details.
 
+The performance update reduces measured page rendering from 9–18 seconds to 0.17–0.65 seconds in the live navigation check. See [PERFORMANCE.md](PERFORMANCE.md) for the method and limits, and [FEATURES_ADDED.md](FEATURES_ADDED.md) for a plain-language feature summary. Refresh an existing browser tab after deployment.
+
 An explainable study planner that turns subjects, exam dates, available time, and quiz results into a realistic revision schedule.
 
 Built with Python and Streamlit by **Priti Kumari**. Use SQLite locally or PostgreSQL when hosted. The core planner works offline without an API key. Optional Gemini features help extract syllabus topics, generate practice questions, and answer questions from your notes.
@@ -151,6 +153,8 @@ Optional: `GEMINI_API_KEY`, `GEMINI_MODEL`, and `STUDY_PLANNER_TIMEZONE`.
 6. Verify `/api/health`, open the dashboard, sign in, and test saving/reloading a subject and plan. The health route checks required configuration and database connectivity.
 
 The app creates its tables on first use. PostgreSQL writes take a shared transaction-level advisory lock to keep replanning consistent across function instances. Reads use consistent snapshots. Production refuses an ephemeral SQLite fallback.
+
+Tables are initialized once per function process/schema version. Database connections are pooled and checked before reuse. Duplicate reads are reused only within one render and cleared on writes. The deployed function and database both use Singapore to reduce database round trips.
 
 Vercel configuration limits functions to 300 seconds. WebSocket reconnections/function recycling can interrupt a browser session and reset the focus timer or sign-in state; durable study records stay in PostgreSQL. Test actual hosted interaction before relying on long study timers. Hosted document uploads are capped at 3 MB to leave room for request overhead. Local uploads remain limited to 10 MB.
 

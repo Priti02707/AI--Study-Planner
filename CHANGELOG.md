@@ -1,5 +1,15 @@
 # Changelog
 
+## Performance update — 2026-11-01
+
+- Reduced measured live page rendering from 9–18 seconds to 0.17–0.65 seconds in the six-page navigation check.
+- Reused checked PostgreSQL connections and initialized schema once per process/database/schema version.
+- Cached duplicate reads within a render, invalidated on writes, and reused transaction connections for nested operations.
+- Made sample-data imports atomic and deferred JSON backup generation until download.
+- Aligned the Vercel Function with the database's Singapore region.
+- Added cache freshness, rollback, schema reuse, and deferred-download regression checks. 70 application tests and 25 PostgreSQL checks passed.
+- Added timing output to the production verification script and documented measurements in PERFORMANCE.md.
+
 ## 2.1.0 — 2026-11-01
 
 - Added an ASGI entrypoint using the pinned Streamlit version's experimental `st.App` interface, preserving the existing dashboard.

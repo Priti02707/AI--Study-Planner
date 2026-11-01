@@ -88,6 +88,11 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(list(self.app.exception), [])
         self.assertNotIn("focus_timer", self.app.session_state)
 
+    def test_progress_does_not_generate_a_backup_until_requested(self):
+        self.load_demo()
+        with patch("planner.storage.Store.backup", side_effect=AssertionError("Backup generated during page render")):
+            self.page("Progress")
+
     def test_notes_search_without_ai(self):
         self.load_demo()
         store = Store(self.path)

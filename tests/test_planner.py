@@ -158,6 +158,42 @@ class StoreTests(unittest.TestCase):
     def test_persists_across_restart(self):
         self.assertEqual(Store(self.path).topics()[0]["name"], "Algebra")
 
+    def test_cached_reads_do_not_share_mutable_rows(self):
+        self.store.subjects()[0]["name"] = "Changed in browser"
+        self.assertEqual(self.store.subjects()[0]["name"], "Math")
+
+    def test_writes_invalidate_current_render_reads(self):
+        self.assertEqual(self.store.subjects()[0]["name"], "Math")
+        self.store.save_subject("Updated Math", 8, 10, BASE+timedelta(days=7), subject_id=self.subject)
+        self.assertEqual(self.store.subjects()[0]["name"], "Updated Math")
+
+    def test_repeated_document_reads_remain_decodable(self):
+        self.store.save_document(self.subject, "Notes", ["Algebra notes."])
+        for _ in range(2):
+            docs = self.store.documents(self.subject)
+            self.assertEqual(docs[0]["pages"], ["Algebra notes."])
+
+    def test_replan_reads_new_assessments_from_another_store(self):
+        self.store.topics()
+        Store(self.path).assessment(self.topic, 2, 10)
+        plan = self.plan()
+        self.assertAlmostEqual(plan.sessions[0].task.mastery, 0.2)
+
+    def test_demo_batch_is_atomic(self):
+        self.store.delete_subject(self.subject)
+        with patch.object(self.store, "add_card", side_effect=RuntimeError("Simulated interrupted import")):
+            with self.assertRaises(RuntimeError):
+                self.store.seed_demo()
+        self.assertEqual(self.store.subjects(), [])
+        self.assertEqual(self.store.topics(), [])
+
+    def test_demo_batch_saves_all_records(self):
+        self.store.delete_subject(self.subject)
+        self.store.seed_demo()
+        self.assertEqual(len(self.store.subjects()), 3)
+        self.assertEqual(len(self.store.topics()), 6)
+        self.assertEqual(len(self.store.cards()), 6)
+
     def test_duplicate_subjects_normalized(self):
         with self.assertRaises(ValueError):
             self.store.save_subject(" MATH ", 6, 10, BASE)

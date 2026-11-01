@@ -3,7 +3,8 @@
 - Live URL: https://ai-study-planner-lac.vercel.app
 - Vercel project: https://vercel.com/priti-09/ai-study-planner
 - Workspace: `priti-09`
-- Production deployment: `dpl_4VZCqFHFa1V3RPS7g4UF1gxQfNLA`
+- Production deployment: `dpl_3cDSrnNvtqowoQoxtXKLiMTBVBLs`
+- Function region: Singapore (`sin1`), matching the database.
 - Database: Neon PostgreSQL, `ai-study-planner-db`, free plan, Singapore region.
 - Published from local source using the authenticated Vercel CLI. GitHub automatic deployment is not connected.
 
@@ -24,7 +25,7 @@ To change the password, update the sensitive `STUDY_PLANNER_PASSWORD` environmen
 - Latest deployment runtime error query returned no errors during verification.
 - No study records were added or changed during live verification.
 
-Local checks also passed: 63 application tests, 18 storage tests against a disposable PostgreSQL server, and ASGI HTTP/WebSocket smoke tests. Live AI provider calls were not tested; a Gemini API key has not been configured.
+After the performance update, local checks passed: 70 application tests and 25 storage tests against a disposable PostgreSQL server. Live sign-in and all six page renders passed again. Measured page-render times were 0.17–0.65 seconds; see [PERFORMANCE.md](PERFORMANCE.md). Live AI provider calls were not tested; a Gemini API key has not been configured.
 
 Recheck the production app using:
 

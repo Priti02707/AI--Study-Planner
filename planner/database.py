@@ -6,6 +6,57 @@ translation is limited to that dialect; it is not a general-purpose SQL parser.
 
 import re
 import sqlite3
+import atexit
+from threading import RLock
+
+_resources_lock = RLock()
+_pools = {}
+_initialized_schemas = set()
+
+
+def get_pool(url):
+    """Reuse a few checked connections per serverless process, not per rerun."""
+    from psycopg_pool import ConnectionPool
+
+    with _resources_lock:
+        if url not in _pools:
+            _pools[url] = ConnectionPool(
+                conninfo=url, min_size=0, max_size=4, timeout=15,
+                max_idle=60, max_lifetime=300, open=True,
+                kwargs={"connect_timeout": 10, "prepare_threshold": None},
+                check=ConnectionPool.check_connection,
+            )
+        return _pools[url]
+
+
+def initialize_postgres(url, schema):
+    """Create tables once per database/schema version in this process."""
+    key = (url, schema)
+    with _resources_lock:
+        if key in _initialized_schemas:
+            return
+        with get_pool(url).connection() as connection:
+            connection.execute("SELECT pg_advisory_xact_lock(681204718)")
+            PostgresConnection(connection).executescript(schema)
+        # Failed initialization is never cached.
+        _initialized_schemas.add(key)
+
+
+def clear_schema_cache():
+    """For schema maintenance and disposable database tests."""
+    with _resources_lock:
+        _initialized_schemas.clear()
+
+
+def close_pools():
+    with _resources_lock:
+        for pool in _pools.values():
+            pool.close()
+        _pools.clear()
+        _initialized_schemas.clear()
+
+
+atexit.register(close_pools)
 
 
 class Row(dict):
@@ -59,6 +110,5 @@ class PostgresConnection:
             raise sqlite3.IntegrityError("Record violates a database constraint.") from exc
 
     def executescript(self, schema):
-        for statement in postgres_schema(schema).split(";"):
-            if statement.strip():
-                self.connection.execute(statement)
+        # No parameters: psycopg can send this fixed DDL batch in one round trip.
+        self.connection.execute(postgres_schema(schema))
