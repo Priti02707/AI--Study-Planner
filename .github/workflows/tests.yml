@@ -19,3 +19,4 @@ jobs:
       - run: python -m compileall -q planner app.py python.py
       - run: python -m pip check
       - run: python scripts/smoke_server.py
+      - run: python scripts/smoke_asgi.py

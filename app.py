@@ -1,5 +1,6 @@
 """Study Planner dashboard. Launch with: streamlit run app.py"""
 import json
+import os
 import time as timer_time
 from datetime import datetime, time, timedelta
 
@@ -7,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from planner import ai
+from planner.access import deployment_errors, hosted, verify_password
 from planner.clock import now, timezone_name
 from planner.exports import calendar_export, csv_export
 from planner.materials import extract_pdf, passages, retrieve
@@ -308,13 +310,14 @@ def notes_page(store):
         return
     subject = st.selectbox("Subject", subjects, format_func=lambda s: s["name"], key="notes_subject")
     with st.form("upload_notes", clear_on_submit=True):
-        uploaded = st.file_uploader("PDF or text notes", type=["pdf", "txt"])
+        upload_limit = 3 if hosted() else 10
+        uploaded = st.file_uploader("PDF or text notes", type=["pdf", "txt"], max_upload_size=upload_limit)
         if st.form_submit_button("Import notes", type="primary"):
             if uploaded is None:
                 raise ValueError("Choose a document first.")
             content = uploaded.getvalue()
-            if len(content) > 10 * 1024 * 1024:
-                raise ValueError("Document must be 10 MB or smaller.")
+            if len(content) > upload_limit * 1024 * 1024:
+                raise ValueError(f"Document must be {upload_limit} MB or smaller.")
             pages = extract_pdf(content) if uploaded.name.lower().endswith(".pdf") else [content.decode("utf-8", errors="replace")[:100000]]
             store.save_document(subject["id"], uploaded.name, pages)
             flash("Notes imported locally.")
@@ -419,6 +422,25 @@ def progress_page(store):
 
 
 def main():
+    errors = deployment_errors()
+    if errors:
+        st.title("Study Planner · finish setup")
+        for error in errors:
+            st.error(error)
+        st.info("Your deployment is running. Complete the project environment settings to enable this private workspace.")
+        return
+    if hosted() or os.environ.get("STUDY_PLANNER_PASSWORD"):
+        if not st.session_state.get("authenticated"):
+            st.title("🌱 Your private study workspace")
+            with st.form("workspace_login"):
+                password = st.text_input("Workspace password", type="password")
+                if st.form_submit_button("Open my planner", type="primary"):
+                    if verify_password(password):
+                        st.session_state["authenticated"] = True
+                        st.rerun()
+                    else:
+                        st.error("That password did not match.")
+            return
     store = Store()
     with st.sidebar:
         st.title("🌱 Study Planner")
@@ -426,7 +448,10 @@ def main():
         page = st.radio("Workspace", ["Today", "Subjects", "Weekly plan", "Practice", "Notes & AI", "Progress"])
         st.divider()
         st.caption(f"{now():%A, %d %B %Y} · {timezone_name()}")
-        st.caption("Saved locally · single-user workspace")
+        st.caption("Saved in PostgreSQL · private workspace" if store.database_url else "Saved locally · single-user workspace")
+        if st.session_state.get("authenticated") and st.button("Sign out"):
+            st.session_state.clear()
+            st.rerun()
         st.caption("AI ready" if ai.configured() else "Core planner works without an API key")
     if "notice" in st.session_state:
         st.success(st.session_state.pop("notice"))

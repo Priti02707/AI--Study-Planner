@@ -1,0 +1,11 @@
+.git
+.venv
+.env*
+__pycache__
+**/__pycache__
+data
+*.sqlite*
+.streamlit/secrets.toml
+.pytest_cache
+tests
+scripts

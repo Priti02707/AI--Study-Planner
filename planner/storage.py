@@ -1,4 +1,4 @@
-"""SQLite persistence. Writes are transactional; replanning preserves history."""
+"""Transactional persistence using local SQLite or hosted PostgreSQL."""
 
 import json
 import math
@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from planner.clock import now
+from planner.database import PostgresConnection
 from planner.models import Slot, Task
 from planner.reviews import next_review
 from planner.scheduler import schedule, subtract_busy
@@ -60,13 +61,27 @@ CREATE INDEX IF NOT EXISTS assessments_topic ON assessments(topic_id, id);
 
 class Store:
     def __init__(self, path=None):
+        self.database_url = os.environ.get("DATABASE_URL", "") if path is None else ""
         self.path = Path(path or os.environ.get("STUDY_PLANNER_DB", "data/study_planner.sqlite3"))
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.database_url:
+            if os.environ.get("VERCEL") == "1":
+                raise ValueError("Connect PostgreSQL with DATABASE_URL before using this hosted planner.")
+            self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
             db.executescript(SCHEMA)
 
     @contextmanager
-    def connect(self):
+    def connect(self, write=True):
+        if self.database_url:
+            import psycopg
+            with psycopg.connect(self.database_url, connect_timeout=10) as connection:
+                if write:
+                    # Shared by all app writes, including concurrent serverless instances.
+                    connection.execute("SELECT pg_advisory_xact_lock(681204718)")
+                else:
+                    connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+                yield PostgresConnection(connection)
+            return
         db = sqlite3.connect(self.path, timeout=15)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
@@ -77,7 +92,7 @@ class Store:
             db.close()
 
     def rows(self, query, params=()):
-        with self.connect() as db:
+        with self.connect(write=False) as db:
             return [dict(row) for row in db.execute(query, params)]
 
     def setting(self, key, default):
@@ -313,7 +328,7 @@ class Store:
 
     def backup(self):
         tables = ("subjects", "topics", "cards", "sessions", "assessments", "review_logs", "documents", "settings")
-        with self.connect() as db:
+        with self.connect(write=False) as db:
             db.execute("BEGIN")
             return json.dumps({"format_version": 1, "exported_at": now().isoformat(),
                                "tables": {table: [dict(r) for r in db.execute(f"SELECT * FROM {table}")] for table in tables}}, indent=2)

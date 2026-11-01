@@ -2,7 +2,7 @@
 
 An explainable study planner that turns subjects, exam dates, available time, and quiz results into a realistic revision schedule.
 
-Built with Python, Streamlit, and SQLite by **Priti Kumari**. The core planner works offline without an API key. Optional Gemini features help extract syllabus topics, generate practice questions, and answer questions from your notes.
+Built with Python and Streamlit by **Priti Kumari**. Use SQLite locally or PostgreSQL when hosted. The core planner works offline without an API key. Optional Gemini features help extract syllabus topics, generate practice questions, and answer questions from your notes.
 
 ## Run locally
 
@@ -122,9 +122,37 @@ export STUDY_PLANNER_TIMEZONE="Asia/Kolkata"
 
 Dates are stored as wall times in the configured timezone. Calendar export converts them to UTC. Keep the same timezone for an existing database. If using a timezone with daylight-saving changes, check sessions around clock transitions manually; the scheduler does not resolve ambiguous or nonexistent local times.
 
-This release is a **local, single-user application**, bound to `127.0.0.1`. It has no sign-in or user isolation. Do not expose one shared database as a multi-user service. Hosting requires persistent storage and an appropriate access-control layer.
+Local mode binds to `127.0.0.1`. Hosted mode requires PostgreSQL and a workspace password. This remains a **single-owner workspace**: everyone with its password shares the same study records. It does not create separate student accounts.
 
 Use **Progress → Export all my data** for a readable JSON snapshot. For a full restorable backup, stop the app and copy the SQLite file; restore that file while the app is stopped. JSON import is not included yet. Local data, virtual environments, and secrets are excluded from Git.
+
+## Vercel deployment
+
+The pinned Streamlit version includes experimental `st.App` ASGI support. `server.py` wraps the existing dashboard as an ASGI application; `pyproject.toml` declares `server:app` as Vercel's entrypoint. A frontend rewrite is not required for this path. Keep the pinned version until changes have been tested against both HTTP and WebSocket behavior.
+
+Required project environment variables:
+
+```text
+DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+STUDY_PLANNER_PASSWORD=a-private-password-at-least-12-characters
+```
+
+Optional: `GEMINI_API_KEY`, `GEMINI_MODEL`, and `STUDY_PLANNER_TIMEZONE`.
+
+1. Sign into Vercel with `vercel login` and verify with `vercel whoami`.
+2. Link/create the project in the intended scope: `vercel link --yes --scope priti-09 --project ai-study-planner` (the CLI may prompt to create a new project).
+3. Connect a PostgreSQL database through Vercel Marketplace, such as Neon. Select the free plan when available; do not enable a paid plan without reviewing it.
+4. Confirm the integration sets `DATABASE_URL` for the intended deployment environment. Add `STUDY_PLANNER_PASSWORD` as a sensitive environment variable through the dashboard or interactive `vercel env add`; do not commit it.
+5. Run `vercel deploy --prod --scope priti-09`. CLI deployment can publish local committed source without first pushing GitHub.
+6. Verify `/api/health`, open the dashboard, sign in, and test saving/reloading a subject and plan. The health route checks required configuration and database connectivity.
+
+The app creates its tables on first use. PostgreSQL writes take a shared transaction-level advisory lock to keep replanning consistent across function instances. Reads use consistent snapshots. Production refuses an ephemeral SQLite fallback.
+
+Vercel configuration limits functions to 300 seconds. WebSocket reconnections/function recycling can interrupt a browser session and reset the focus timer or sign-in state; durable study records stay in PostgreSQL. Test actual hosted interaction before relying on long study timers. Hosted document uploads are capped at 3 MB to leave room for request overhead. Local uploads remain limited to 10 MB.
+
+The workspace link alone grants no deployment access. Browser authorization must finish before the CLI can provision services or publish. A successful local ASGI check does not prove a Vercel deployment is live.
+
+References: [Streamlit ASGI release notes](https://docs.streamlit.io/develop/quick-reference/release-notes/2026), [Vercel Python entrypoints](https://vercel.com/docs/functions/runtimes/python), [Vercel WebSockets](https://vercel.com/changelog/websocket-support-is-now-in-public-beta).
 
 ## Tests
 
@@ -133,7 +161,10 @@ python -m unittest discover -s tests -v
 python -m compileall -q planner app.py python.py
 python -m pip check
 python scripts/smoke_server.py
+python scripts/smoke_asgi.py
 ```
+
+If PostgreSQL server tools (`initdb` and `pg_ctl`) are installed, `python scripts/check_postgres.py` runs the storage tests against a disposable local PostgreSQL cluster. It never uses an existing hosted database.
 
 Tests use temporary databases and mocked AI responses; they do not read your saved study data or spend API quota. Coverage includes input errors, mark normalization, integer allocation, prerequisite ordering, exam boundaries, randomized capacity checks, partial/skipped replanning, persistence, pace updates, review intervals, PDF extraction, source validation, exports, and Streamlit interactions.
 
@@ -157,6 +188,7 @@ The console validates input, handles tied weak subjects and full marks, and dist
 
 ```text
 app.py                    Streamlit dashboard
+server.py                 ASGI entrypoint and deployment health check
 python.py                 Validated console edition
 planner/
   validation.py           Input validation and proportional allocation
@@ -164,6 +196,8 @@ planner/
   models.py               Task, slot, session, and plan records
   scheduler.py            Priorities, constraints, and greedy scheduling
   storage.py              Transactional SQLite persistence and replanning
+  database.py             PostgreSQL adapter for durable hosted storage
+  access.py               Hosted configuration and workspace access
   reviews.py              Adaptive SM-2 based review intervals
   materials.py            PDF extraction and local source retrieval
   ai.py                   Optional Gemini generation and citation checks
@@ -179,8 +213,8 @@ PROJECT_ANALYSIS.md       Initial research and eight-project comparison
 - One recurring free-time window per weekday is supported. Split daily windows are not yet editable in the dashboard.
 - A planning pass reserves the next review for each card. After rating a card, regenerate to include its next due review.
 - The focus timer lasts only for the browser session. Its elapsed time does not automatically mark work complete.
-- PDF import supports selectable text, up to 10 MB and 100 pages, with per-page complexity/text limits. Scans need external OCR.
-- The application has no push notifications, cloud sync, authentication, or trained grade prediction.
+- PDF import supports selectable text, up to 10 MB locally or 3 MB when hosted, and 100 pages, with per-page complexity/text limits. Scans need external OCR.
+- The application has no push notifications, separate student accounts, or trained grade prediction. Hosted access uses one private workspace password.
 - AI requests are implemented and tested with mocks; live responses require a configured provider key.
 
 See [PROJECT_ANALYSIS.md](PROJECT_ANALYSIS.md) for the original comparison and [CHANGELOG.md](CHANGELOG.md) for the implemented upgrade.

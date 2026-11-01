@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0 — 2026-11-01
+
+- Added an ASGI entrypoint using the pinned Streamlit version's experimental `st.App` interface, preserving the existing dashboard.
+- Added Vercel entrypoint, duration limits, deployment exclusions, and an HTTP/database health route.
+- Added PostgreSQL storage with transactional write coordination and consistent read snapshots; retained local SQLite.
+- Added a hosted workspace password gate and configuration checks that prevent ephemeral database fallback.
+- Added hosted upload limits, access tests, PostgreSQL integration checks, and a real ASGI WebSocket smoke test.
+- Deployment requires successful account authorization and a connected PostgreSQL database. These source changes alone do not indicate a live deployment.
+
 ## 2.0.0 — 2026-11-01
 
 Expanded the original marks-only console script into a persistent study-planning application.

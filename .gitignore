@@ -9,3 +9,6 @@ htmlcov/
 data/
 *.sqlite*
 .DS_Store
+.vercel/
+.env.*
+!.env.example
