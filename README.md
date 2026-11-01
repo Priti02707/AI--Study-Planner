@@ -149,12 +149,14 @@ Optional: `GEMINI_API_KEY`, `GEMINI_MODEL`, and `STUDY_PLANNER_TIMEZONE`.
 2. Link/create the project in the intended scope: `vercel link --yes --scope priti-09 --project ai-study-planner` (the CLI may prompt to create a new project).
 3. Connect a PostgreSQL database through Vercel Marketplace, such as Neon. Select the free plan when available; do not enable a paid plan without reviewing it.
 4. Confirm the integration sets `DATABASE_URL` for the intended deployment environment. Add `STUDY_PLANNER_PASSWORD` as a sensitive environment variable through the dashboard or interactive `vercel env add`; do not commit it.
-5. Run `vercel deploy --prod --scope priti-09`. CLI deployment can publish local committed source without first pushing GitHub.
+5. Run `python scripts/prepare_static.py` with the installed project dependencies, then `vercel deploy --prod --scope priti-09`. The preparation step copies the pinned Streamlit browser assets into ignored `public/` for CDN delivery. Repeat it after changing Streamlit. CLI deployment can publish local committed source without first pushing GitHub.
 6. Verify `/api/health`, open the dashboard, sign in, and test saving/reloading a subject and plan. The health route checks required configuration and database connectivity.
 
 The app creates its tables on first use. PostgreSQL writes take a shared transaction-level advisory lock to keep replanning consistent across function instances. Reads use consistent snapshots. Production refuses an ephemeral SQLite fallback.
 
 Tables are initialized once per function process/schema version. Database connections are pooled and checked before reuse. Duplicate reads are reused only within one render and cleared on writes. The deployed function and database both use Singapore to reduce database round trips.
+
+The initial HTML and framework JavaScript, styles, and fonts are served directly from Vercel's CDN. Versioned assets receive a one-year immutable cache lifetime; the HTML is revalidated so deployments can update its asset references. The private workspace still requires a Python/WebSocket connection, and sign-in remains required before reading study records.
 
 Vercel configuration limits functions to 300 seconds. WebSocket reconnections/function recycling can interrupt a browser session and reset the focus timer or sign-in state; durable study records stay in PostgreSQL. Test actual hosted interaction before relying on long study timers. Hosted document uploads are capped at 3 MB to leave room for request overhead. Local uploads remain limited to 10 MB.
 

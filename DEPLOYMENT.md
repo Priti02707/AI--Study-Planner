@@ -3,8 +3,8 @@
 - Live URL: https://ai-study-planner-lac.vercel.app
 - Vercel project: https://vercel.com/priti-09/ai-study-planner
 - Workspace: `priti-09`
-- Production deployment: `dpl_HrmC8yRJJRn4boc7qocpFAPjZagi`
-- Application source commit: `728a5cf` (multiple study windows per weekday).
+- Production deployment: `dpl_EbzSLcJXoA3QN89cYszhEMYe6RJq`
+- Includes multiple study windows per weekday and CDN delivery of the opening HTML and browser assets.
 - Function region: Singapore (`sin1`), matching the database.
 - Database: Neon PostgreSQL, `ai-study-planner-db`, free plan, Singapore region.
 - Published from local source using the authenticated Vercel CLI. GitHub automatic deployment is not connected.
@@ -37,6 +37,10 @@ Recheck the production app using:
 ## Deployment implementation
 
 The study windows update passed all 78 local application tests before publication. After deployment, production HTTP/database health, workspace sign-in, and all six dashboard pages passed verification without changing study records. Existing saved availability remains compatible.
+
+The initial loading update passed all 80 local tests. Opening HTML loaded in 0.50 seconds in the post-deployment HTTP check, with a CDN cache hit; this is not a full browser-interactivity measurement. Production health, sign-in, and six-page navigation passed again. See [PERFORMANCE.md](PERFORMANCE.md) for measurements and network limits.
+
+Before each CLI deployment, run `.venv/bin/python scripts/prepare_static.py` to create the matching pinned Streamlit frontend in ignored `public/`. Vercel uploads that generated directory using `.vercelignore` rules and serves it from the CDN; it is excluded from the Python bundle. Do not omit preparation or change the Streamlit pin without regenerating assets.
 
 `api/index.py` exports the ASGI app from `server.py`. Vercel routes requests to that Python Function through `vercel.json`. Streamlit telemetry is disabled to avoid writes to Vercel's read-only home directory. Study data is durable in PostgreSQL; the server refuses an ephemeral SQLite fallback.
 

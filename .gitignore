@@ -10,5 +10,6 @@ data/
 *.sqlite*
 .DS_Store
 .vercel/
+public/
 .env.*
 !.env.example

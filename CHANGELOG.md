@@ -1,5 +1,12 @@
 # Changelog
 
+## Initial loading update — 2026-11-01
+
+- Separated public Streamlit HTML, JavaScript, styles, and fonts from the Python function so Vercel can deliver them through its CDN.
+- Added an opening message, a project page title, and immutable caching for versioned assets.
+- Added a pinned-version asset preparation command and tests for asset completeness and excluding server files.
+- Kept authentication and study data on the existing private ASGI workspace.
+
 ## Study windows update — 2026-11-01
 
 - Added editable weekday availability with multiple windows per day, row creation/deletion, and weekday selection.
