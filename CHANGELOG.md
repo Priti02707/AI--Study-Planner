@@ -7,7 +7,8 @@
 - Added PostgreSQL storage with transactional write coordination and consistent read snapshots; retained local SQLite.
 - Added a hosted workspace password gate and configuration checks that prevent ephemeral database fallback.
 - Added hosted upload limits, access tests, PostgreSQL integration checks, and a real ASGI WebSocket smoke test.
-- Deployment requires successful account authorization and a connected PostgreSQL database. These source changes alone do not indicate a live deployment.
+- Deployed to https://ai-study-planner-lac.vercel.app with Neon PostgreSQL on the free plan. Verified production health, private sign-in, WebSocket rendering, and all six dashboard pages.
+- Used Vercel's file-based `api/index.py` entrypoint and disabled Streamlit telemetry for its read-only serverless filesystem.
 
 ## 2.0.0 — 2026-11-01
 

@@ -1,5 +1,9 @@
 # 🌱 AI Study Planner
 
+**Live app:** https://ai-study-planner-lac.vercel.app · hosted in `priti-09/ai-study-planner`.
+
+The deployed workspace is password protected. Its generated password is stored locally as `STUDY_PLANNER_PASSWORD` in the ignored `.env.local` file. See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment and verification details.
+
 An explainable study planner that turns subjects, exam dates, available time, and quiz results into a realistic revision schedule.
 
 Built with Python and Streamlit by **Priti Kumari**. Use SQLite locally or PostgreSQL when hosted. The core planner works offline without an API key. Optional Gemini features help extract syllabus topics, generate practice questions, and answer questions from your notes.
@@ -128,7 +132,7 @@ Use **Progress → Export all my data** for a readable JSON snapshot. For a full
 
 ## Vercel deployment
 
-The pinned Streamlit version includes experimental `st.App` ASGI support. `server.py` wraps the existing dashboard as an ASGI application; `pyproject.toml` declares `server:app` as Vercel's entrypoint. A frontend rewrite is not required for this path. Keep the pinned version until changes have been tested against both HTTP and WebSocket behavior.
+The pinned Streamlit version includes experimental `st.App` ASGI support. `server.py` wraps the existing dashboard as an ASGI application; `api/index.py` exposes it as a file-based Vercel Python Function, and `vercel.json` routes requests to that function. A frontend rewrite is not required for this path. Keep the pinned version until changes have been tested against both HTTP and WebSocket behavior.
 
 Required project environment variables:
 

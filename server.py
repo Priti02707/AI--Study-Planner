@@ -4,6 +4,10 @@ from pathlib import Path
 from asyncio import to_thread
 import os
 
+# Serverless filesystems have no writable home directory. Disable Streamlit's
+# optional telemetry before it initializes its installation identifier.
+os.environ.setdefault("STREAMLIT_BROWSER_GATHER_USAGE_STATS", "false")
+
 import streamlit as st
 from starlette.responses import JSONResponse
 from starlette.routing import Route
