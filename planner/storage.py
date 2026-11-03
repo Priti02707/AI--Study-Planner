@@ -4,6 +4,7 @@ import json
 import math
 import os
 import sqlite3
+import secrets
 from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import deepcopy
@@ -16,6 +17,8 @@ from planner.models import Slot, Task
 from planner.reviews import next_review
 from planner.scheduler import schedule, subtract_busy
 from planner.validation import integer, number, score, text
+
+BACKUP_TABLES = ("subjects", "topics", "cards", "sessions", "assessments", "review_logs", "documents", "settings")
 
 _transaction = ContextVar("study_planner_transaction", default=None)
 
@@ -64,15 +67,20 @@ CREATE INDEX IF NOT EXISTS assessments_topic ON assessments(topic_id, id);
 
 
 class Store:
-    def __init__(self, path=None, workspace_id=None, schema=SCHEMA):
+    def __init__(self, path=None, workspace_id=None, schema=SCHEMA, *, browser_workspace=False):
         workspace_schema(workspace_id)
         self.workspace_id = workspace_id
         self._read_cache = {}
-        self.database_url = os.environ.get("DATABASE_URL", "") if path is None else ""
+        self.browser_workspace = browser_workspace
+        self.database_url = os.environ.get("DATABASE_URL", "") if path is None and not browser_workspace else ""
+        self._memory_uri = None
+        if browser_workspace:
+            self._memory_uri = f"file:{secrets.token_hex(16)}?mode=memory&cache=shared"
+            self._memory_keeper = sqlite3.connect(self._memory_uri, uri=True, check_same_thread=False)
         self.path = Path(path or os.environ.get("STUDY_PLANNER_DB", "data/study_planner.sqlite3"))
         if workspace_id is not None:
             self.path = self.path.parent / "workspaces" / f"{workspace_id}.sqlite3"
-        if not self.database_url:
+        if not self.database_url and not browser_workspace:
             if os.environ.get("VERCEL") == "1":
                 raise ValueError("Connect PostgreSQL with DATABASE_URL before using this hosted planner.")
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,7 +127,7 @@ class Store:
                 with self._scope(PostgresConnection(connection), write) as db:
                     yield db
             return
-        db = sqlite3.connect(self.path, timeout=15)
+        db = sqlite3.connect(self._memory_uri or self.path, timeout=15, uri=self.browser_workspace)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
         try:
@@ -370,11 +378,56 @@ class Store:
         return docs
 
     def backup(self):
-        tables = ("subjects", "topics", "cards", "sessions", "assessments", "review_logs", "documents", "settings")
         with self.connect(write=False) as db:
             db.execute("BEGIN")
             return json.dumps({"format_version": 1, "exported_at": now().isoformat(),
-                               "tables": {table: [dict(r) for r in db.execute(f"SELECT * FROM {table}")] for table in tables}}, indent=2)
+                               "tables": {table: [dict(r) for r in db.execute(f"SELECT * FROM {table}")] for table in BACKUP_TABLES}}, indent=2)
+
+    def restore(self, content):
+        """Restore an exported planner into an empty workspace atomically."""
+        if len(content) > 20 * 1024 * 1024:
+            raise ValueError("The backup exceeds 20 MB.")
+        try:
+            snapshot = json.loads(content)
+            tables = snapshot["tables"]
+            if snapshot["format_version"] != 1 or set(tables) != set(BACKUP_TABLES):
+                raise ValueError
+            with self.connect() as db:
+                db.execute("BEGIN IMMEDIATE")
+                for table in BACKUP_TABLES:
+                    if db.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone():
+                        raise ValueError("Restore requires a new, empty workspace.")
+                for table in BACKUP_TABLES:
+                    rows = tables[table]
+                    if not isinstance(rows, list):
+                        raise ValueError
+                    if not rows:
+                        continue
+                    cursor = db.execute(f"SELECT * FROM {table} LIMIT 0")
+                    description = cursor.cursor.description if self.database_url else cursor.description
+                    columns = [column[0] for column in description]
+                    placeholders = ",".join("?" for _ in columns)
+                    prerequisites = []
+                    for row in rows:
+                        if not isinstance(row, dict) or set(row) != set(columns):
+                            raise ValueError
+                        if any(type(value) not in (int, float, str, type(None)) for value in row.values()):
+                            raise ValueError
+                        if table == "topics" and row["prerequisite_id"] is not None:
+                            prerequisites.append((row["prerequisite_id"], row["id"]))
+                            row = {**row, "prerequisite_id": None}
+                        db.execute(f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders})",
+                                   tuple(row[column] for column in columns))
+                    for prerequisite, topic in prerequisites:
+                        db.execute("UPDATE topics SET prerequisite_id=? WHERE id=?", (prerequisite, topic))
+                if self.database_url:
+                    for table in BACKUP_TABLES[:-1]:
+                        db.execute(f"SELECT setval(pg_get_serial_sequence(?, 'id'), GREATEST(COALESCE(MAX(id), 0), 1), COUNT(*) > 0) FROM {table}",
+                                   (table,))
+        except (KeyError, TypeError, OverflowError, sqlite3.Error) as exc:
+            raise ValueError("The backup has an invalid planner record.") from exc
+        except ValueError as exc:
+            raise ValueError(str(exc) or "Choose a valid version 1 planner JSON backup.") from exc
 
     def seed_demo(self):
         with self.connect():

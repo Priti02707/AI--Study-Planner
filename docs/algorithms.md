@@ -44,7 +44,7 @@ Reference: [original SuperMemo SM-2 description](https://www.super-memory.com/en
 
 The coach uses up to three recent topic assessments, weighted 3:2:1 from newest to oldest. Below 50% suggests Foundation, 50–79% Standard, and 80% or above Challenge. Subject marks are the fallback when no topic assessments exist. Self-rated recall checks count as assessments; these are not automatically graded tests.
 
-This practice recommendation is separate from the scheduler's latest-score priority input. Optional Gemini quizzes receive the recommended level, recent mistake text, and source excerpts. The thresholds are heuristics, not calibrated estimates of mastery or exam results.
+This practice recommendation is separate from the scheduler's latest-score priority input. Optional Groq quizzes receive the recommended level, recent mistake text, and source excerpts. The thresholds are heuristics, not calibrated estimates of mastery or exam results.
 
 ## Console example
 

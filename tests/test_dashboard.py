@@ -17,7 +17,7 @@ class DashboardTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         registry_path = Path(self.temp.name)/"ui.sqlite3"
-        self.environment = patch.dict(os.environ, {"STUDY_PLANNER_DB":str(registry_path), "GEMINI_API_KEY":"", "DATABASE_URL": "", "VERCEL": "", "STUDY_PLANNER_PASSWORD": ""})
+        self.environment = patch.dict(os.environ, {"STUDY_PLANNER_DB":str(registry_path), "GROQ_API_KEY":"", "DATABASE_URL": "", "VERCEL": "", "STUDY_PLANNER_PASSWORD": ""})
         self.environment.start()
         accounts = Accounts()
         account_id = accounts.register("Test student", "student", "test-password-12345")
@@ -168,10 +168,10 @@ class DashboardTests(unittest.TestCase):
         self.page("Progress")
         self.button("Start focus").click().run()
         self.assertEqual(list(self.app.exception), [])
-        self.assertIn("focus_timer", self.app.session_state)
+        self.assertIsNotNone(Store(self.path).setting("focus_timer", None))
         self.button("End focus block").click().run()
         self.assertEqual(list(self.app.exception), [])
-        self.assertNotIn("focus_timer", self.app.session_state)
+        self.assertIsNone(Store(self.path).setting("focus_timer", None))
 
     def test_progress_does_not_generate_a_backup_until_requested(self):
         self.load_demo()

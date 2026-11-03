@@ -30,7 +30,7 @@ The pre-account project data stays under **Existing workspace**. Its password is
 
 The accounts update passed 95 application tests and 35 disposable PostgreSQL checks. PostgreSQL checks include account schema isolation, prevention of fallback to public tables, session expiry/revocation, password changes, and preservation of original data. Live checks passed for registration, account switching, persistent private subjects, and original workspace navigation.
 
-After the performance update, local checks passed: 70 application tests and 25 storage tests against a disposable PostgreSQL server. Live sign-in and all six page renders passed again. Measured page-render times were 0.17–0.65 seconds; see [PERFORMANCE.md](PERFORMANCE.md). Live AI provider calls were not tested; a Gemini API key has not been configured.
+After the performance update, local checks passed: 70 application tests and 25 storage tests against a disposable PostgreSQL server. Live sign-in and all six page renders passed again. Measured page-render times were 0.17–0.65 seconds; see [PERFORMANCE.md](PERFORMANCE.md). Live AI provider calls were outside that verification run.
 
 Recheck the production app using:
 
@@ -44,7 +44,7 @@ For an explicit live registration/isolation check, run `scripts/verify_accounts.
 
 The password-manager update passed 13 account/hosting interaction checks, and Vercel confirmed the deployment as ready. Standard autocomplete hints identify usernames, existing passwords, and new passwords. Chrome controls whether it offers to save a login; appearance of that browser prompt has not been verified. Manual saving instructions are in the [user guide](docs/guide.md#browser-password-manager).
 
-The Study coach update passed 108 application tests and 43 disposable PostgreSQL checks. GitHub Actions passed on Python 3.12 and 3.14. The knowledge check is self-rated, not AI-graded; adaptive AI question generation remains optional and requires a configured Gemini key. Core setup, recommendations, review cards, and plan preview/acceptance work offline.
+The Study coach update passed 108 application tests and 43 disposable PostgreSQL checks. GitHub Actions passed on Python 3.12 and 3.14. The knowledge check is self-rated, not AI-graded; adaptive AI question generation remains optional and requires a configured Groq key. Core setup, recommendations, review cards, and plan preview/acceptance work offline.
 
 Vercel confirmed this release as `READY`, and its authenticated production health check returned `{"status":"ok","errors":[]}` through the project alias. Full live coach/account verification on this release could not complete: public-domain TCP connections and subsequent authenticated-alias probes timed out from the verification network before the clients could exercise the workflow. Local interaction tests cover setup, self-check, preview, acceptance, and stale-preview invalidation; the remaining live verification is not claimed as passed. No existing student records were modified during these probes.
 
@@ -60,7 +60,7 @@ See [Deploy from a checkout](#deploy-from-a-checkout) for the required asset pre
 
 Registered accounts use separate PostgreSQL schemas; their transaction-local search path excludes the public/original workspace. The registry stores salted password hashes and hashed, expiring session tokens. Sign-out revokes the current token; password changes revoke every token for that account. Existing records are preserved in their original tables and cannot be claimed by a registrant.
 
-Function duration is 300 seconds; reconnection can reset sign-in/timer state, while saved records remain in PostgreSQL. Hosted uploads are limited to 3 MB. The ASGI interface is experimental in the pinned Streamlit version, so verify interaction after upgrades. Email verification and automated password recovery are not implemented; save your credentials.
+Function duration is 300 seconds. Student sign-in resumes from the 24-hour HttpOnly cookie after reconnecting, and the timer start time persists with study records in PostgreSQL. Hosted uploads are limited to 3 MB. The ASGI interface is experimental in the pinned Streamlit version, so verify interaction after upgrades. Password recovery requires a security answer and a single-use recovery code.
 
 Local Vercel credentials, `.vercel/` project linkage, `.env.local`, and database credentials are excluded from Git and deployment uploads.
 
@@ -75,7 +75,7 @@ Install the project dependencies using the README's local setup, then use an aut
    ```
 
 2. Connect PostgreSQL through Vercel Marketplace or configure an existing database. Review the provider plan before provisioning. The application role must be able to create account schemas. Set the production `DATABASE_URL` through Vercel settings, for example `postgresql://user:password@host/database?sslmode=require`; never commit credentials.
-3. Optionally set `GEMINI_API_KEY`, `GEMINI_MODEL`, and `STUDY_PLANNER_TIMEZONE`. Keep `STUDY_PLANNER_PASSWORD` only if retaining access to the original workspace. New student accounts do not need that shared password.
+3. Optionally set `GROQ_API_KEY`, `GROQ_MODEL`, and `STUDY_PLANNER_TIMEZONE`. Keep `STUDY_PLANNER_PASSWORD` only if retaining access to the original workspace. New student accounts do not need that shared password.
 4. Prepare the matching browser assets and deploy from the installed environment:
 
    ```bash
@@ -90,3 +90,7 @@ Install the project dependencies using the README's local setup, then use an aut
 The function and database currently use Singapore to reduce database round trips. Schema setup is reused per process; checked database connections are pooled and duplicate reads are reused within a render, then invalidated on writes. See [PERFORMANCE.md](PERFORMANCE.md) for measurements and limits.
 
 References: [Streamlit ASGI release notes](https://docs.streamlit.io/develop/quick-reference/release-notes/2026), [Vercel Python entrypoints](https://vercel.com/docs/functions/runtimes/python), and [Vercel WebSocket support](https://vercel.com/changelog/websocket-support-is-now-in-public-beta).
+
+### Release checks
+
+Run `python -m scripts.smoke_asgi` for the ASGI route, WebSocket session, and revoked-cookie checks. Open `/test` in the deployed app, create a sample subject, refresh, and verify it returns. In another browser profile verify the test planner starts empty. Test data lives in browser site storage and is processed transiently in memory on the server. Clearing site data removes it. The public test workspace disables Groq. Run `python -m scripts.verify_groq` separately with an authorized test key.

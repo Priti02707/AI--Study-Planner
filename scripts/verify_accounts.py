@@ -28,7 +28,9 @@ def submit(dashboard, label, fields=(), areas=()):
 def register(dashboard, handle, password):
     change(dashboard, "radio", "Account", "Create account")
     submit(dashboard, "Create my account", [("Your name", "Deployment QA"), ("Choose a username", handle),
-                                           ("Password", password), ("Confirm password", password)])
+                                           ("Password", password), ("Confirm password", password),
+                                           ("Your security question", "What is my QA recovery phrase?"),
+                                           ("Security answer (12–128 characters)", secrets.token_urlsafe(24))])
     dashboard.widget("radio", "Workspace")
 
 

@@ -67,7 +67,7 @@ The following features are documented by the linked repositories. Each row inclu
 | [dguywhoknows/study-planner](https://github.com/dguywhoknows/study-planner) | Topic breakdown, capacity-aware scheduling, interleaving, spaced reviews, missed-session replanning, calendar export. | Respect available capacity and keep completed work when regenerating the plan. |
 | [AdaptiStudy](https://github.com/prushti21/AdaptiStudy) | Mobile app, weighted historical duration estimates, focus timer, PDF quizzes, mistake review, progress rewards. | Learn realistic task duration from completed sessions and keep a mistake notebook. |
 | [StudyIndex](https://github.com/ethanhunt1011/studyindex) | Document-to-topic extraction, SM-2 flashcards, document-grounded chat, practice exams. | Connect uploaded material, retrieval practice, and review scheduling. |
-| [AI Study Plan Recommender](https://github.com/Lezo-Jong/ai-study-plan-recommender) | Gemini-generated plans, progress feedback loop, planner/reviewer/evaluation architecture. | Evaluate plan quality explicitly; separate generation from validation. |
+| [AI Study Plan Recommender](https://github.com/Lezo-Jong/ai-study-plan-recommender) | Groq-generated plans, progress feedback loop, planner/reviewer/evaluation architecture. | Evaluate plan quality explicitly; separate generation from validation. |
 | [EduAgent Pro](https://github.com/JMadhan1/eduagent) | PDF retrieval, adaptive quizzes, notes, tutor chat, exam simulation, analytics. | Integrate practice results with planning after the core scheduler is reliable. |
 
 Your main gap is the absence of dates, saved progress, and feedback. Build those before attempting the entire feature set of the larger projects.

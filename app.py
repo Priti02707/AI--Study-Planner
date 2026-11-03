@@ -1,6 +1,7 @@
 """Study Planner dashboard. Launch with: streamlit run app.py"""
 import json
 import os
+import secrets
 import time as timer_time
 from datetime import datetime, time, timedelta
 
@@ -12,6 +13,7 @@ from planner.access import deployment_errors, hosted
 from planner.accounts import Accounts, OWNER_ID
 from planner.availability import WEEKDAYS, validate_windows, weekly_slots
 from planner.clock import now, timezone_name
+from planner.browser_state import SESSION_COOKIE, load_workspace, save_workspace, session_cookie
 from planner.coach import recommendations
 from planner.coach_ui import coach_page
 from planner.exports import calendar_export, csv_export
@@ -249,12 +251,12 @@ def practice_page(store):
                 store.add_card(topic["id"], question, answer, source)
                 flash("Card added to your review queue.")
     with tab_quiz:
-        st.caption("Optional: relevant note excerpts and recent mistake text are sent to Gemini when you generate questions. Check generated answers against the source.")
+        st.caption("Optional: relevant note excerpts and recent mistake text are sent to Groq when you generate questions. Check generated answers against the source.")
         topic = choose_topic(topics, "ai_quiz_topic")
         recommendation = next((item for item in recommendations(store) if item["topic"]["id"] == topic["id"]), None)
         level = recommendation["level"] if recommendation else "Standard"
         st.caption(f"Suggested next set: {level}. " + (recommendation["reason"] if recommendation else "Update your exam date in Subjects for current recommendations."))
-        if st.button("Generate source-based quiz", disabled=not ai.configured()):
+        if st.button("Generate source-based quiz", disabled=(store.browser_workspace or not ai.configured())):
             with st.spinner("Preparing your questions…"):
                 sources = retrieve(topic["name"], store.documents(topic["subject_id"]))
                 st.session_state["quiz"] = {"topic_id": topic["id"], "questions": ai.generate_quiz(topic["name"], sources, level,
@@ -284,8 +286,8 @@ def practice_page(store):
                     st.write(question["explanation"])
                     st.caption(question["source"])
                     st.caption("Source evidence: " + question["evidence"])
-        if not ai.configured():
-            st.info("AI is optional. See README for GEMINI_API_KEY setup. Manual quizzes and cards work now.")
+        if (store.browser_workspace or not ai.configured()):
+            st.info("AI is optional. See README for GROQ_API_KEY setup. Manual quizzes and cards work now.")
 
 
 def notes_page(store):
@@ -323,8 +325,8 @@ def notes_page(store):
             with st.expander(item["label"]):
                 st.text(item["text"])
     st.subheader("Syllabus → editable topics")
-    st.caption("Generating sends up to 30 note excerpts to Gemini. Review and edit every suggestion before importing.")
-    if st.button("Suggest topics from notes", disabled=not ai.configured() or not docs):
+    st.caption("Generating sends up to 30 note excerpts to Groq. Review and edit every suggestion before importing.")
+    if st.button("Suggest topics from notes", disabled=(store.browser_workspace or not ai.configured()) or not docs):
         with st.spinner("Reading your syllabus…"):
             st.session_state["draft_topics"] = {"subject_id": subject["id"], "rows": ai.extract_topics(passages(docs)[:30])}
     draft = st.session_state.get("draft_topics")
@@ -341,7 +343,7 @@ def notes_page(store):
     st.subheader("Ask your notes")
     with st.form("ask_notes"):
         question = st.text_input("Your question")
-        if st.form_submit_button("Ask with sources", disabled=not ai.configured()):
+        if st.form_submit_button("Ask with sources", disabled=(store.browser_workspace or not ai.configured())):
             with st.spinner("Checking the relevant passages…"):
                 result = ai.tutor(question, retrieve(question, docs))
             st.write(result["answer"])
@@ -352,7 +354,7 @@ def notes_page(store):
 
 @st.fragment(run_every="1s")
 def focus_timer(store, topics):
-    running = st.session_state.get("focus_timer")
+    running = store.setting("focus_timer", None)
     if running:
         elapsed = max(0, timer_time.time() - running["started"])
         remaining = max(0, running["minutes"] * 60 - elapsed)
@@ -361,14 +363,14 @@ def focus_timer(store, topics):
         if remaining == 0:
             st.success("Focus block finished. Take a break, then record your session outcome on Today.")
         if st.button("End focus block"):
-            del st.session_state["focus_timer"]
+            store.save_setting("focus_timer", None)
             st.rerun()
     else:
         with st.form("start_focus"):
             topic = choose_topic(topics, "focus_topic")
             minutes = st.slider("Focus minutes", 5, 90, 25, step=5)
             if st.form_submit_button("Start focus", type="primary"):
-                st.session_state["focus_timer"] = {"started": timer_time.time(), "minutes": minutes, "label": topic_label(topic)}
+                store.save_setting("focus_timer", {"started": timer_time.time(), "minutes": minutes, "label": topic_label(topic)})
                 st.rerun()
 
 
@@ -380,7 +382,7 @@ def progress_page(store):
             progress = min(topic["completed_minutes"] / topic["estimated_minutes"], 1.0)
             st.progress(progress, text=f"{topic_label(topic)} · {progress:.0%} of estimated work completed")
         st.subheader("Focus timer")
-        st.caption("Timer state lasts for this browser session. Record study outcomes on Today; elapsed timer time does not automatically mark learning complete.")
+        st.caption("The timer resumes from its saved start time after reconnecting. Record study outcomes on Today; elapsed timer time does not automatically mark learning complete.")
         focus_timer(store, topics)
     finished = [s for s in sessions if s["actual_minutes"] > 0]
     if finished:
@@ -405,15 +407,58 @@ def progress_page(store):
     if not finished and not results:
         st.info("Your progress appears here after you record study work or a quiz.")
     st.download_button("Export all my data (JSON)", store.backup, "study-planner-backup.json", "application/json")
-    st.caption("The JSON export includes your notes and study history. Keep it somewhere private. This version exports backups; restore is not yet supported in the interface.")
+    st.caption("The JSON export includes your notes and study history. Keep it somewhere private. Restore a backup into an empty planner.")
+
+    with st.expander("Restore a backup"):
+        with st.form("restore_backup", clear_on_submit=True):
+            backup = st.file_uploader("Planner JSON backup", type=["json"], max_upload_size=3 if hosted() else 20)
+            if st.form_submit_button("Restore into empty planner"):
+                if backup is None:
+                    raise ValueError("Choose a JSON backup first.")
+                store.restore(backup.getvalue())
+                flash("Planner backup restored.")
+                st.rerun()
 
 
-def enter_account(token):
+def enter_account(token, remember=False):
     # Clear quiz drafts, uploaded material, focus timers, and widget selections
     # before moving between accounts in the same browser session.
     st.session_state.clear()
     st.session_state["account_token"] = token
+    st.session_state["remember_account"] = remember
     st.rerun()
+
+
+def recovery_fields(key):
+    code_key = f"{key}_recovery_code"
+    if code_key not in st.session_state:
+        st.session_state[code_key] = secrets.token_urlsafe(24)
+    question = st.text_input("Your security question", max_chars=160, key=f"{key}_question")
+    answer = st.text_input("Security answer (12–128 characters)", type="password", max_chars=128, key=f"{key}_answer")
+    st.caption("Save this recovery code privately. You will need both the code and your answer.")
+    st.code(st.session_state[code_key])
+    return question, answer, st.session_state[code_key]
+
+
+def reset_account_page(accounts):
+    handle = st.text_input("Username", max_chars=40)
+    code = st.text_input("Recovery code", type="password", max_chars=80)
+    if st.button("Show security question"):
+        st.session_state["recovery_challenge"] = (handle, code, accounts.recovery_question(handle, code))
+    challenge = st.session_state.get("recovery_challenge")
+    if challenge and challenge[:2] == (handle, code):
+        st.text(challenge[2])
+        with st.form("reset_password", clear_on_submit=True):
+            answer = st.text_input("Security answer", type="password", max_chars=128)
+            password = st.text_input("New password", type="password", max_chars=128, autocomplete="new-password")
+            confirm = st.text_input("Confirm new password", type="password", max_chars=128, autocomplete="new-password")
+            if st.form_submit_button("Reset password"):
+                if password != confirm:
+                    raise ValueError("The passwords do not match.")
+                accounts.reset_password(handle, code, answer, password)
+                st.session_state.clear()
+                flash("Password reset. Sign in and set up a new recovery code.")
+                st.rerun()
 
 
 def account_page(accounts):
@@ -421,7 +466,7 @@ def account_page(accounts):
     st.write("Your subjects, your schedule, your progress. Sign in to pick up where you left off.")
     if "notice" in st.session_state:
         st.success(st.session_state.pop("notice"))
-    choices = ["Sign in", "Create account"]
+    choices = ["Sign in", "Create account", "Reset password"]
     if len(os.environ.get("STUDY_PLANNER_PASSWORD", "")) >= 12:
         choices.append("Existing workspace")
     mode = st.radio("Account", choices, horizontal=True)
@@ -432,12 +477,14 @@ def account_page(accounts):
                 handle = st.text_input("Choose a username", max_chars=40, autocomplete="username")
                 password = st.text_input("Password", type="password", max_chars=128, autocomplete="new-password")
                 confirm = st.text_input("Confirm password", type="password", max_chars=128, autocomplete="new-password")
-                st.caption("Choose a password with at least 12 characters. Save your username and password; email recovery is not available yet.")
+                recovery = recovery_fields("register")
                 if st.form_submit_button("Create my account", type="primary"):
                     if password != confirm:
                         raise ValueError("The passwords do not match.")
-                    accounts.register(name, handle, password)
-                    enter_account(accounts.sign_in(handle, password))
+                    accounts.register(name, handle, password, *recovery)
+                    enter_account(accounts.sign_in(handle, password), remember=True)
+        elif mode == "Reset password":
+            reset_account_page(accounts)
         elif mode == "Existing workspace":
             st.info("For the original project workspace only. New students should create an account for their own private planner.")
             with st.form("workspace_login"):
@@ -449,14 +496,53 @@ def account_page(accounts):
                 handle = st.text_input("Username", max_chars=40, autocomplete="username")
                 password = st.text_input("Password", type="password", max_chars=128, autocomplete="current-password")
                 if st.form_submit_button("Sign in", type="primary"):
-                    enter_account(accounts.sign_in(handle, password))
+                    enter_account(accounts.sign_in(handle, password), remember=True)
             st.caption("New here? Choose Create account. Every student gets a separate private planner.")
             st.caption("Your browser manages saved passwords. If no save prompt appears, add this site and your login in your browser’s password manager.")
     except ValueError as exc:
         st.error(str(exc))
 
 
+def test_workspace():
+    st.sidebar.title("Test workspace")
+    st.sidebar.caption("No sign-in required. Test records are stored in this browser profile.")
+    st.sidebar.link_button("Back to sign in", "/")
+    st.sidebar.caption("Use one test tab at a time. Groq is disabled in this public workspace.")
+    if "test_store" not in st.session_state:
+        result = load_workspace(key="test_load", on_snapshot_change=lambda: None)
+        snapshot = result.get("snapshot")
+        if snapshot is None:
+            st.info("Loading your browser’s test workspace…")
+            return
+        store = Store(browser_workspace=True)
+        if snapshot:
+            try:
+                store.restore(snapshot)
+            except ValueError as exc:
+                st.error(f"Could not load the test workspace. {exc}")
+                return
+        st.session_state["test_store"] = store
+    store = st.session_state["test_store"]
+    if "notice" in st.session_state:
+        st.success(st.session_state.pop("notice"))
+    page = st.sidebar.radio("Workspace", list(PAGES), key="workspace_page")
+    try:
+        PAGES[page](store)
+    except ValueError as exc:
+        st.error(str(exc))
+    snapshot = json.loads(store.backup())
+    snapshot.pop("exported_at")
+    save_workspace(data=json.dumps(snapshot, separators=(",", ":")), key="test_save")
+
+
+PAGES = {"Today": today_page, "Study coach": lambda store: coach_page(store, flash), "Subjects": subjects_page,
+         "Weekly plan": plan_page, "Practice": practice_page, "Notes & AI": notes_page, "Progress": progress_page}
+
+
 def main():
+    if st.query_params.get("workspace") == "test":
+        test_workspace()
+        return
     errors = deployment_errors()
     if errors:
         st.title("Study Planner · finish setup")
@@ -466,15 +552,22 @@ def main():
         return
     accounts = Accounts()
     token = st.session_state.get("account_token")
+    persistent_sessions = os.environ.get("STUDY_PLANNER_ASGI") == "1"
+    cookie = st.context.cookies.get(SESSION_COOKIE) if persistent_sessions else None
+    if not token and cookie and not st.session_state.get("ignore_account_cookie"):
+        token = cookie
     identity = accounts.identity(token)
     if not identity:
         if token:
             st.session_state.clear()
+            st.session_state["ignore_account_cookie"] = True
             st.warning("Your session expired. Please sign in again.")
         account_page(accounts)
         return
     original = identity["id"] == OWNER_ID
     store = Store(workspace_id=None if original else identity["id"])
+    if not original and persistent_sessions and st.session_state.get("remember_account") and cookie != token:
+        session_cookie(data=token, key="account_cookie")
     with st.sidebar:
         st.title("🌱 Study Planner")
         st.caption("Small steps. Stronger recall.")
@@ -487,6 +580,7 @@ def main():
         if st.button("Sign out"):
             accounts.sign_out(token)
             st.session_state.clear()
+            st.session_state["ignore_account_cookie"] = True
             st.rerun()
         if not original:
             with st.expander("Change password"):
@@ -500,16 +594,25 @@ def main():
                                 raise ValueError("The new passwords do not match.")
                             accounts.change_password(token, current, new_password)
                             st.session_state.clear()
+                            st.session_state["ignore_account_cookie"] = True
                             flash("Password changed. Sign in with your new password.")
+                        except ValueError as exc:
+                            st.error(str(exc))
+            with st.expander("Set up password recovery"):
+                with st.form("set_recovery", clear_on_submit=True):
+                    recovery_password = st.text_input("Current password", type="password", max_chars=128, key="recovery_password")
+                    recovery = recovery_fields("settings")
+                    if st.form_submit_button("Save recovery details"):
+                        try:
+                            accounts.set_recovery(token, recovery_password, *recovery)
+                            st.success("Recovery details saved. Keep the code shown above.")
                         except ValueError as exc:
                             st.error(str(exc))
         st.caption("AI ready" if ai.configured() else "Core planner works without an API key")
     if "notice" in st.session_state:
         st.success(st.session_state.pop("notice"))
-    pages = {"Today": today_page, "Study coach": lambda store: coach_page(store, flash), "Subjects": subjects_page, "Weekly plan": plan_page,
-             "Practice": practice_page, "Notes & AI": notes_page, "Progress": progress_page}
     try:
-        pages[page](store)
+        PAGES[page](store)
     except ValueError as exc:
         st.error(str(exc))
 

@@ -15,7 +15,7 @@ class AccountDashboardTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.environment = patch.dict(os.environ, {"STUDY_PLANNER_DB": str(Path(self.temp.name) / "accounts.sqlite3"),
-                                                   "DATABASE_URL": "", "VERCEL": "", "STUDY_PLANNER_PASSWORD": "", "GEMINI_API_KEY": ""})
+                                                   "DATABASE_URL": "", "VERCEL": "", "STUDY_PLANNER_PASSWORD": "", "GROQ_API_KEY": ""})
         self.environment.start()
         self.app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=20).run()
 
@@ -36,6 +36,8 @@ class AccountDashboardTests(unittest.TestCase):
         self.field("Choose a username", handle)
         self.field("Password", "student-password-12345")
         self.field("Confirm password", "student-password-12345")
+        self.field("Your security question", "What is my recovery phrase?")
+        self.field("Security answer (12–128 characters)", "test-recovery-answer")
         self.button("Create my account")
 
     def sign_in(self, handle="alice.student", password="student-password-12345"):

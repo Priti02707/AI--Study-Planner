@@ -4,7 +4,7 @@
 
 ## Study workflow
 
-Choose **Create account**, enter your name, a username, and a password of at least 12 characters. You will enter your own empty planner. Returning students use **Sign in**. Use **Sign out** or **Change password** in the sidebar. Usernames ignore case; save your credentials because email recovery is not included.
+Choose **Create account**, enter your name, a username, and a password of at least 12 characters. You will enter your own empty planner. Returning students use **Sign in**. Use **Sign out** or **Change password** in the sidebar. Usernames ignore case. At signup, write a security question, choose a private answer of at least 12 characters, and save the generated recovery code. Existing users can enroll under **Set up password recovery**. Choose **Reset password** at sign-in and supply the code and answer. Reset revokes all sessions and consumes the code. Set up a new code after signing back in.
 
 ### Guided setup
 
@@ -35,23 +35,23 @@ Download CSV and `.ics` calendar exports from **Weekly plan**. Calendar exports 
 Export environment variables **before** starting Streamlit:
 
 ```bash
-export GEMINI_API_KEY="your-key"
-export GEMINI_MODEL="gemini-2.5-flash"
+export GROQ_API_KEY="your-key"
+export GROQ_MODEL="llama-3.3-70b-versatile"
 python -m streamlit run app.py
 ```
 
-In PowerShell, use `$env:GEMINI_API_KEY="your-key"` and `$env:GEMINI_MODEL="gemini-2.5-flash"`.
+In PowerShell, use `$env:GROQ_API_KEY="your-key"` and `$env:GROQ_MODEL="llama-3.3-70b-versatile"`.
 
 The model name is configurable because provider availability can change. [`.env.example`](../.env.example) documents the settings; `.env` files are **not** loaded automatically. Keys are read on the server and are never written to the database or repository.
 
 - AI calls happen only when you press a generation/answer button.
-- Selected note excerpts and your request are sent to Google's Gemini API. Adaptive quizzes also include up to three recent mistake prompts, which can include self-check explanations. This may use your provider quota.
+- Selected note excerpts and your request are sent to Groq’s API. Adaptive quizzes also include up to three recent mistake prompts, which can include self-check explanations. This may use your provider quota.
 - Topic generation uses up to the first 30 document excerpts; large documents may need splitting.
 - Quiz generation and tutoring use local lexical retrieval to select relevant page excerpts. This is a lightweight retrieval-augmented workflow, without embeddings or a vector database.
 - Responses use structured JSON. Source IDs and evidence excerpts are checked against the material supplied to the model. These checks do not prove that an answer is correct; inspect source pages and review AI topic suggestions before importing.
 - If AI is unavailable, manual topic entry, quiz logging, cards, planning, and local search continue to work.
 
-References: [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/structured-output), [Streamlit](https://docs.streamlit.io/get-started/fundamentals/main-concepts), [pypdf extraction](https://pypdf.readthedocs.io/en/stable/user/extract-text.html).
+References: [Groq JSON Object Mode](https://console.groq.com/docs/structured-outputs), [Streamlit](https://docs.streamlit.io/get-started/fundamentals/main-concepts), [pypdf extraction](https://pypdf.readthedocs.io/en/stable/user/extract-text.html).
 
 ## Saved data and timezone
 
@@ -68,11 +68,11 @@ Dates are stored as wall times in the configured timezone. Calendar export conve
 
 Local mode binds to `127.0.0.1`. Hosted mode requires PostgreSQL. Accounts use separate PostgreSQL schemas with transaction-local search paths that exclude the original workspace. Locally, accounts use separate SQLite files. Registration creates a new empty workspace and cannot claim existing project data. The same subject names and topic IDs can exist independently in different accounts.
 
-Passwords use individually salted PBKDF2-HMAC-SHA256 hashes with 600,000 iterations. Server-side sessions expire after 24 hours, are revoked by sign-out, and all of an account's sessions are revoked when its password changes. Five failed sign-ins for a username trigger a 15-minute lockout. Browser session recycling may require an earlier sign-in. This version does not provide email verification, password recovery, social sign-in, or administrator account management.
+Passwords use individually salted PBKDF2-HMAC-SHA256 hashes with 600,000 iterations. Server-side sessions expire after 24 hours, are revoked by sign-out, and all of an account's sessions are revoked when its password changes. Five failed sign-ins for a username trigger a 15-minute lockout. Hosted student sign-in survives reloads while the browser retains its HttpOnly session cookie. Email verification, social sign-in, and administrator account management are unavailable.
 
 To open pre-account project data, set `STUDY_PLANNER_PASSWORD` to a password of at least 12 characters before launching, then choose **Existing workspace**. On the deployed project, the existing password continues to work. This compatibility workspace is separate from registered accounts.
 
-Use **Progress → Export all my data** for a readable JSON snapshot of your current account's study records; authentication records are excluded. For a full restorable local backup, stop the app and copy the entire `data/` directory (or the registry file and adjacent `workspaces/` directory at a custom database path). Restore while stopped. JSON import is not included yet. Local data, virtual environments, generated browser assets, and secrets are excluded from Git.
+Use **Progress → Export all my data** for a readable JSON snapshot of your current account's study records; authentication records are excluded. For a full restorable local backup, stop the app and copy the entire `data/` directory (or the registry file and adjacent `workspaces/` directory at a custom database path). Restore while stopped. To import a JSON snapshot, open **Progress → Restore a backup** in an empty workspace. The hosted upload limit is 3 MB. Local data, virtual environments, generated browser assets, and secrets are excluded from Git.
 
 Password hashing reference: [OWASP password storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 
@@ -84,8 +84,8 @@ Sign-in and registration fields provide standard browser autofill hints. Chrome 
 
 - The scheduler is greedy; it can leave work unscheduled even when a more sophisticated arrangement exists. CP-SAT optimization is a future improvement.
 - A planning pass reserves the next review for each card. After rating a card, regenerate to include its next due review.
-- The focus timer lasts only for the browser session. Its elapsed time does not automatically mark work complete.
+- The focus timer resumes from the saved start time. Its elapsed time does not automatically mark work complete.
 - PDF import supports selectable text, up to 10 MB locally or 3 MB when hosted, and 100 pages, with per-page complexity/text limits. Scans need external OCR.
-- The application has no push notifications or trained grade prediction. Accounts have no email verification or automated password recovery yet.
-- AI requests are implemented and tested with mocks; live responses require a configured provider key.
+- The application has no push notifications or trained grade prediction. Account recovery uses a security answer and recovery code.
+- AI requests are tested with mocks. Run `python -m scripts.verify_groq` with a test key to check live topic extraction, quiz generation, and cited tutoring against synthetic notes.
 

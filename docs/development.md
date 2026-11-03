@@ -16,7 +16,7 @@ If PostgreSQL server tools (`initdb` and `pg_ctl`) are installed, `python script
 
 Tests use temporary databases and mocked AI responses; they do not read your saved study data or spend API quota. Coverage includes input errors, mark normalization, integer allocation, prerequisite ordering, exam boundaries, randomized capacity checks, partial/skipped replanning, persistence, pace updates, review intervals, PDF extraction, source validation, exports, and Streamlit interactions.
 
-GitHub Actions runs the checks on Python 3.12 and 3.14. A successful local run does not establish that a GitHub Actions run or live Gemini request succeeded.
+GitHub Actions runs the checks on Python 3.12 and 3.14. A successful local run does not establish that a GitHub Actions run or live Groq request succeeded.
 
 ## Source layout
 
@@ -38,7 +38,7 @@ planner/
   availability.py         Recurring study-window validation
   reviews.py              Adaptive SM-2 based review intervals
   materials.py            PDF extraction and local source retrieval
-  ai.py                   Optional Gemini generation and citation checks
+  ai.py                   Optional Groq generation and citation checks
   exports.py              CSV and RFC 5545 calendar exports
 tests/                    Core and dashboard interaction tests
 .github/workflows/        Continuous integration
