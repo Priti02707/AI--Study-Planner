@@ -10,6 +10,8 @@ Built by **Priti Kumari** with Python and Streamlit. Plan, review, and track pro
 
 [Live app](https://ai-study-planner-lac.vercel.app) · [User guide](docs/guide.md) · [Deployment](DEPLOYMENT.md) · [Changelog](CHANGELOG.md)
 
+The recovery, browser-local test workspace, and Groq setup described below are included in [PR #2](https://github.com/Priti02707/AI--Study-Planner/pull/2). The live app reflects its deployed release.
+
 ## Overview
 
 Study time is limited, and a timetable needs to change when work is missed or a topic needs more practice. AI Study Planner builds sessions around your exam dates, topic workload, and free windows, then helps you revise the plan as you record results.
@@ -20,13 +22,13 @@ The core planner runs locally without an API key. Scheduling uses transparent ru
 
 | Feature | What you can do |
 | --- | --- |
-| Private accounts | Register, sign in, change your password, and keep study records separate from other students. |
+| Private accounts | Keep study records private, resume hosted sign-in for up to 24 hours, and reset your password with your security answer and a one-time recovery code. |
 | Study coach | Set up subjects and goals, check recall, and preview a starting plan before accepting it. |
 | Flexible planning | Schedule around multiple daily windows, breaks, days off, exam deadlines, and topic prerequisites. |
 | Adaptive revision | Record quizzes and completed, partial, or skipped sessions; update future priorities while preserving finished work. |
-| Practice and notes | Review flashcards, keep a mistake notebook, import PDF/text notes, and search source passages. |
+| Practice and notes | Review flashcards, keep a mistake notebook, import PDF or text notes, and find source passages with typo-tolerant BM25 search. |
 | Optional Groq assistance | Review extracted topics, generate source-based quizzes with suggested difficulty, and ask questions about your notes. |
-| Progress and exports | Track study activity, use a focus timer, and export timetables to CSV/calendar or study records to JSON. |
+| Progress and exports | Track activity, resume the focus timer after reconnecting, export schedules as CSV or `.ics`, and export or restore study records as JSON. |
 
 ## Tech stack
 
@@ -70,7 +72,7 @@ For the smaller console edition, run `python python.py`. It allocates daily minu
 
 ### Optional AI configuration
 
-Export these variables before starting the dashboard:
+Set `GROQ_API_KEY` before starting the dashboard. `GROQ_MODEL` is optional and defaults to `llama-3.3-70b-versatile`.
 
 ```bash
 export GROQ_API_KEY="your-key"
@@ -80,11 +82,17 @@ python -m streamlit run app.py
 
 For PowerShell syntax and other settings, see the [User guide](docs/guide.md) and [environment example](.env.example). Environment files are not loaded automatically. AI requests send selected excerpts and, for adaptive quizzes, recent mistake text to Groq; inspect generated answers against the source. Manual planning, recall checks, cards, and local search work without AI.
 
-Hosted setup requires `DATABASE_URL` and a database role that can create account schemas. Follow the [deployment guide](DEPLOYMENT.md), including browser-asset preparation before publishing. The hosted ASGI app resumes student sessions for up to 24 hours and saves the focus timer in the account.
+In Vercel, set `GROQ_API_KEY` as a server-side environment variable and redeploy to enable AI. Hosted account storage also requires `DATABASE_URL` and a database role that can create account schemas. Follow the [deployment guide](DEPLOYMENT.md), including browser-asset preparation before publishing. The hosted ASGI app resumes student sessions for up to 24 hours and saves the focus timer in the account.
 
 ## Try without an account
 
-Open `/test` on the hosted app. It opens a disposable planner that saves its records in the current browser profile. Use synthetic data and one test tab at a time. The test workspace exercises the planner without PostgreSQL or live Groq. For a local equivalent, run `python -m uvicorn server:app` and visit `http://127.0.0.1:8000/test`.
+Open `/test` on a deployment that includes this release. The disposable planner keeps records in browser site storage until you clear it. The server processes those records in memory and the workspace bypasses PostgreSQL. Groq is disabled there. Use synthetic data and one test tab at a time.
+
+To try it locally, run `python -m uvicorn server:app` and open [the local test workspace](http://127.0.0.1:8000/test).
+
+## Restore your study records
+
+Use **Progress → Export all my data** to download a JSON backup. To import a version 1 backup, use **Progress → Restore a backup** from an empty workspace. Account credentials are excluded. The hosted upload limit is 3 MB.
 
 ## Try a study session
 
@@ -111,6 +119,7 @@ To run the main checks locally:
 
 ```bash
 python -m unittest discover -s tests -v
+python -m scripts.smoke_asgi
 ```
 
-Tests use temporary databases and mocked AI responses. See the development guide for HTTP, WebSocket, and disposable PostgreSQL checks.
+The suite uses temporary databases and mocked AI responses. The ASGI smoke check covers `/test` routing, WebSocket reconnect, and session revocation. With a test key configured, run `python -m scripts.verify_groq` to check live topic extraction, quiz generation, and cited tutoring using synthetic notes. See the [development guide](docs/development.md) for PostgreSQL checks.
