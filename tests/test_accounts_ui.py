@@ -36,6 +36,8 @@ class AccountDashboardTests(unittest.TestCase):
         self.field("Choose a username", handle)
         self.field("Password", "student-password-12345")
         self.field("Confirm password", "student-password-12345")
+        self.field("Your security question", "What is my recovery phrase?")
+        self.field("Security answer (12–128 characters)", "test-recovery-answer")
         self.button("Create my account")
 
     def sign_in(self, handle="alice.student", password="student-password-12345"):

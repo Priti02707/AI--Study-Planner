@@ -1,7 +1,7 @@
 """Username accounts, salted password hashes, expiring sessions, and throttling.
 
 Study records live in separate schemas/files; the registry holds identity only.
-Session tokens remain in server-side Streamlit state; only their hashes persist.
+Session token hashes persist in the database. Hosted browsers resume via an HttpOnly cookie.
 """
 import hashlib
 import hmac
@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS app_auth_sessions (
 );
 CREATE TABLE IF NOT EXISTS app_login_attempts (
  username TEXT PRIMARY KEY, failures INTEGER NOT NULL, blocked_until BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS app_recovery (
+ account_id TEXT PRIMARY KEY REFERENCES app_accounts(id) ON DELETE CASCADE,
+ question TEXT NOT NULL, answer_hash TEXT NOT NULL, code_hash TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS app_auth_expiry ON app_auth_sessions(expires_at);
 """
@@ -74,17 +78,89 @@ class Accounts:
     def __init__(self, path=None):
         self.store = Store(path, schema=AUTH_SCHEMA)
 
-    def register(self, name, handle, password):
+    def register(self, name, handle, password, question=None, answer=None, code=None):
         name, handle = text(name, "Your name", 80), username(handle)
         encoded = hash_password(password)
+        recovery = self._recovery_fields(question, answer, code) if question is not None else None
         account_id = secrets.token_hex(16)
         try:
             with self.store.connect() as db:
                 db.execute("INSERT INTO app_accounts(id,username,display_name,password_hash,created_at) VALUES (?,?,?,?,?)",
                            (account_id, handle, name, encoded, int(time.time())))
+                if recovery:
+                    self._save_recovery(db, account_id, recovery)
         except sqlite3.IntegrityError:
             raise ValueError("That username is unavailable. Choose another one.") from None
         return account_id
+
+    @staticmethod
+    def _recovery_fields(question, answer, code):
+        question = text(question, "Security question", 160)
+        answer = text(answer, "Security answer", 128).casefold()
+        return question, hash_password(answer), token_hash(code)
+
+    @staticmethod
+    def _save_recovery(db, account_id, recovery):
+        db.execute(
+            "INSERT INTO app_recovery VALUES (?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET "
+            "question=excluded.question,answer_hash=excluded.answer_hash,code_hash=excluded.code_hash",
+            (account_id, *recovery),
+        )
+
+    def set_recovery(self, token, password, question, answer, code):
+        identity = self.identity(token)
+        if not identity or identity["id"] == OWNER_ID:
+            raise ValueError("Sign in to a student account first.")
+        with self.store.connect() as db:
+            row = db.execute("SELECT password_hash FROM app_accounts WHERE id=?", (identity["id"],)).fetchone()
+            if not check_password(password, row["password_hash"]):
+                raise ValueError("Current password did not match.")
+            self._save_recovery(db, identity["id"], self._recovery_fields(question, answer, code))
+            db.execute("DELETE FROM app_login_attempts WHERE username=?", (f"#recovery:{identity['id']}",))
+
+    def recovery_question(self, handle, code):
+        with self.store.connect(write=False) as db:
+            row = db.execute(
+                "SELECT r.question FROM app_recovery r JOIN app_accounts a ON a.id=r.account_id "
+                "WHERE a.username=? AND r.code_hash=?", (username(handle), token_hash(code.strip())),
+            ).fetchone()
+        if not row:
+            raise ValueError("The username or recovery code did not match.")
+        return row["question"]
+
+    def reset_password(self, handle, code, answer, password):
+        handle = username(handle)
+        validate_password(password)
+        error = None
+        with self.store.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT r.account_id,r.answer_hash FROM app_recovery r JOIN app_accounts a ON a.id=r.account_id "
+                "WHERE a.username=? AND r.code_hash=?", (handle, token_hash(code.strip())),
+            ).fetchone()
+            if not row:
+                raise ValueError("The recovery details did not match.")
+            attempt_key = f"#recovery:{row['account_id']}"
+            now = int(time.time())
+            attempt = db.execute("SELECT * FROM app_login_attempts WHERE username=?", (attempt_key,)).fetchone()
+            if attempt and attempt["blocked_until"] > now:
+                raise ValueError("Too many recovery attempts. Try again in 15 minutes.")
+            if not check_password(answer.strip().casefold(), row["answer_hash"]):
+                failures = (attempt["failures"] if attempt and not attempt["blocked_until"] else 0) + 1
+                db.execute(
+                    "INSERT INTO app_login_attempts VALUES (?,?,?) ON CONFLICT(username) DO UPDATE SET "
+                    "failures=excluded.failures,blocked_until=excluded.blocked_until",
+                    (attempt_key, failures, now + 900 if failures >= 5 else 0),
+                )
+                error = "The recovery details did not match."
+            else:
+                account_id = row["account_id"]
+                db.execute("UPDATE app_accounts SET password_hash=? WHERE id=?", (hash_password(password), account_id))
+                db.execute("DELETE FROM app_auth_sessions WHERE account_id=?", (account_id,))
+                db.execute("DELETE FROM app_login_attempts WHERE username IN (?,?)", (handle, attempt_key))
+                db.execute("DELETE FROM app_recovery WHERE account_id=?", (account_id,))
+        if error:
+            raise ValueError(error)
 
     def _session(self, db, account_id):
         current = int(time.time())

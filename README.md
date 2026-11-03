@@ -64,7 +64,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-On Windows PowerShell, replace the activation command with `.venv\Scripts\Activate.ps1`. Open **http://localhost:8501**, then choose **Create account**. Passwords must contain at least 12 characters; save your credentials because automated password recovery is not available.
+On Windows PowerShell, replace the activation command with `.venv\Scripts\Activate.ps1`. Open **http://localhost:8501**, then choose **Create account**. Passwords must contain at least 12 characters; set your own security question and save the generated recovery code.
 
 For the smaller console edition, run `python python.py`. It allocates daily minutes from subject marks; accounts and dated timetables belong to the dashboard.
 
@@ -80,7 +80,11 @@ python -m streamlit run app.py
 
 For PowerShell syntax and other settings, see the [User guide](docs/guide.md) and [environment example](.env.example). Environment files are not loaded automatically. AI requests send selected excerpts and, for adaptive quizzes, recent mistake text to Google; inspect generated answers against the source. Manual planning, recall checks, cards, and local search work without AI.
 
-Hosted setup requires `DATABASE_URL` and a database role that can create account schemas. Follow the [deployment guide](DEPLOYMENT.md), including browser-asset preparation before publishing. The Streamlit ASGI interface is experimental; hosted reconnections can reset sign-in and timer state.
+Hosted setup requires `DATABASE_URL` and a database role that can create account schemas. Follow the [deployment guide](DEPLOYMENT.md), including browser-asset preparation before publishing. The hosted ASGI app resumes student sessions for up to 24 hours and saves the focus timer in the account.
+
+## Try without an account
+
+Open `/test` on the hosted app. It opens a disposable planner that saves its records in the current browser profile. Use synthetic data and one test tab at a time. The test workspace exercises the planner without PostgreSQL or live Gemini. For a local equivalent, run `python -m uvicorn server:app` and visit `http://127.0.0.1:8000/test`.
 
 ## Try a study session
 
@@ -93,7 +97,7 @@ For example, after a weak Functions quiz, its latest score becomes a scheduling 
 
 ## Limits and documentation
 
-The scheduler is greedy and does not guarantee an optimal timetable or predict exam marks. PDF import needs selectable text: up to 10 MB locally, 3 MB when hosted, and 100 pages. Scanned documents need external OCR. Email verification, password recovery, and push notifications are not implemented.
+The scheduler is greedy and does not guarantee an optimal timetable or predict exam marks. PDF import needs selectable text: up to 10 MB locally, 3 MB when hosted, and 100 pages. Scanned documents need external OCR. Email verification and push notifications are unavailable.
 
 | Read more | Contents |
 | --- | --- |

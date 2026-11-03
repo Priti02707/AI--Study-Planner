@@ -168,10 +168,10 @@ class DashboardTests(unittest.TestCase):
         self.page("Progress")
         self.button("Start focus").click().run()
         self.assertEqual(list(self.app.exception), [])
-        self.assertIn("focus_timer", self.app.session_state)
+        self.assertIsNotNone(Store(self.path).setting("focus_timer", None))
         self.button("End focus block").click().run()
         self.assertEqual(list(self.app.exception), [])
-        self.assertNotIn("focus_timer", self.app.session_state)
+        self.assertIsNone(Store(self.path).setting("focus_timer", None))
 
     def test_progress_does_not_generate_a_backup_until_requested(self):
         self.load_demo()

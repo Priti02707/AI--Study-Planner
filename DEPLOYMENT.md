@@ -60,7 +60,7 @@ See [Deploy from a checkout](#deploy-from-a-checkout) for the required asset pre
 
 Registered accounts use separate PostgreSQL schemas; their transaction-local search path excludes the public/original workspace. The registry stores salted password hashes and hashed, expiring session tokens. Sign-out revokes the current token; password changes revoke every token for that account. Existing records are preserved in their original tables and cannot be claimed by a registrant.
 
-Function duration is 300 seconds; reconnection can reset sign-in/timer state, while saved records remain in PostgreSQL. Hosted uploads are limited to 3 MB. The ASGI interface is experimental in the pinned Streamlit version, so verify interaction after upgrades. Email verification and automated password recovery are not implemented; save your credentials.
+Function duration is 300 seconds. Student sign-in resumes from the 24-hour HttpOnly cookie after reconnecting, and the timer start time persists with study records in PostgreSQL. Hosted uploads are limited to 3 MB. The ASGI interface is experimental in the pinned Streamlit version, so verify interaction after upgrades. Password recovery requires a security answer and a single-use recovery code.
 
 Local Vercel credentials, `.vercel/` project linkage, `.env.local`, and database credentials are excluded from Git and deployment uploads.
 
@@ -90,3 +90,7 @@ Install the project dependencies using the README's local setup, then use an aut
 The function and database currently use Singapore to reduce database round trips. Schema setup is reused per process; checked database connections are pooled and duplicate reads are reused within a render, then invalidated on writes. See [PERFORMANCE.md](PERFORMANCE.md) for measurements and limits.
 
 References: [Streamlit ASGI release notes](https://docs.streamlit.io/develop/quick-reference/release-notes/2026), [Vercel Python entrypoints](https://vercel.com/docs/functions/runtimes/python), and [Vercel WebSocket support](https://vercel.com/changelog/websocket-support-is-now-in-public-beta).
+
+### Release checks
+
+Run `python -m scripts.smoke_asgi` for the ASGI route, WebSocket session, and revoked-cookie checks. Open `/test` in the deployed app, create a sample subject, refresh, and verify it returns. In another browser profile verify the test planner starts empty. Test data lives in browser site storage and is processed transiently in memory on the server. Clearing site data removes it. The public test workspace disables Gemini. Run `python -m scripts.verify_gemini` separately with an authorized test key.
