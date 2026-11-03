@@ -15,7 +15,7 @@ class AccountDashboardTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.environment = patch.dict(os.environ, {"STUDY_PLANNER_DB": str(Path(self.temp.name) / "accounts.sqlite3"),
-                                                   "DATABASE_URL": "", "VERCEL": "", "STUDY_PLANNER_PASSWORD": "", "GEMINI_API_KEY": ""})
+                                                   "DATABASE_URL": "", "VERCEL": "", "STUDY_PLANNER_PASSWORD": "", "GROQ_API_KEY": ""})
         self.environment.start()
         self.app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"), default_timeout=20).run()
 

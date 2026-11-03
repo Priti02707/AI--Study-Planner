@@ -393,10 +393,27 @@ class MaterialsAndAITests(unittest.TestCase):
         with patch("planner.ai.generate", return_value={"answer":"An unsupported statement.","citations":[]}):
             self.assertIn("do not provide", ai.tutor("What?", passages(self.docs))["answer"])
 
+    def test_groq_chat_completion_contract(self):
+        payload = {"answer": "A grounded answer.", "citations": []}
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps({
+            "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(payload)}}],
+        }).encode()
+        with patch.dict(os.environ, {"GROQ_API_KEY": "test-key", "GROQ_MODEL": "openai/gpt-oss-20b"}):
+            with patch("urllib.request.urlopen", return_value=response) as open_url:
+                self.assertEqual(ai.generate("Answer", {"question": "What?"}, {"type": "object"}), payload)
+        request = open_url.call_args.args[0]
+        body = json.loads(request.data)
+        self.assertEqual(request.full_url, "https://api.groq.com/openai/v1/chat/completions")
+        self.assertEqual(request.get_header("Authorization"), "Bearer test-key")
+        self.assertEqual(body["model"], "openai/gpt-oss-20b")
+        self.assertEqual(body["response_format"], {"type": "json_object"})
+        self.assertEqual(json.loads(body["messages"][1]["content"]), {"question": "What?"})
+
     def test_invalid_ai_json(self):
         response = unittest.mock.MagicMock()
-        response.__enter__.return_value.read.return_value = b'{"candidates":[{"finishReason":"STOP","content":{"parts":[{"text":"invalid json"}]}}]}'
-        with patch.dict(os.environ, {"GEMINI_API_KEY":"test-key"}), patch("urllib.request.urlopen", return_value=response):
+        response.__enter__.return_value.read.return_value = b'{"choices":[{"finish_reason":"stop","message":{"content":"invalid json"}}]}'
+        with patch.dict(os.environ, {"GROQ_API_KEY":"test-key"}), patch("urllib.request.urlopen", return_value=response):
             with self.assertRaises(ai.AIError):
                 ai.generate("test", {}, {})
 

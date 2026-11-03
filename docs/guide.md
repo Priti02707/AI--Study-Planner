@@ -35,23 +35,23 @@ Download CSV and `.ics` calendar exports from **Weekly plan**. Calendar exports 
 Export environment variables **before** starting Streamlit:
 
 ```bash
-export GEMINI_API_KEY="your-key"
-export GEMINI_MODEL="gemini-2.5-flash"
+export GROQ_API_KEY="your-key"
+export GROQ_MODEL="llama-3.3-70b-versatile"
 python -m streamlit run app.py
 ```
 
-In PowerShell, use `$env:GEMINI_API_KEY="your-key"` and `$env:GEMINI_MODEL="gemini-2.5-flash"`.
+In PowerShell, use `$env:GROQ_API_KEY="your-key"` and `$env:GROQ_MODEL="llama-3.3-70b-versatile"`.
 
 The model name is configurable because provider availability can change. [`.env.example`](../.env.example) documents the settings; `.env` files are **not** loaded automatically. Keys are read on the server and are never written to the database or repository.
 
 - AI calls happen only when you press a generation/answer button.
-- Selected note excerpts and your request are sent to Google's Gemini API. Adaptive quizzes also include up to three recent mistake prompts, which can include self-check explanations. This may use your provider quota.
+- Selected note excerpts and your request are sent to Groq’s API. Adaptive quizzes also include up to three recent mistake prompts, which can include self-check explanations. This may use your provider quota.
 - Topic generation uses up to the first 30 document excerpts; large documents may need splitting.
 - Quiz generation and tutoring use local lexical retrieval to select relevant page excerpts. This is a lightweight retrieval-augmented workflow, without embeddings or a vector database.
 - Responses use structured JSON. Source IDs and evidence excerpts are checked against the material supplied to the model. These checks do not prove that an answer is correct; inspect source pages and review AI topic suggestions before importing.
 - If AI is unavailable, manual topic entry, quiz logging, cards, planning, and local search continue to work.
 
-References: [Gemini structured outputs](https://ai.google.dev/gemini-api/docs/structured-output), [Streamlit](https://docs.streamlit.io/get-started/fundamentals/main-concepts), [pypdf extraction](https://pypdf.readthedocs.io/en/stable/user/extract-text.html).
+References: [Groq JSON Object Mode](https://console.groq.com/docs/structured-outputs), [Streamlit](https://docs.streamlit.io/get-started/fundamentals/main-concepts), [pypdf extraction](https://pypdf.readthedocs.io/en/stable/user/extract-text.html).
 
 ## Saved data and timezone
 
@@ -87,5 +87,5 @@ Sign-in and registration fields provide standard browser autofill hints. Chrome 
 - The focus timer resumes from the saved start time. Its elapsed time does not automatically mark work complete.
 - PDF import supports selectable text, up to 10 MB locally or 3 MB when hosted, and 100 pages, with per-page complexity/text limits. Scans need external OCR.
 - The application has no push notifications or trained grade prediction. Account recovery uses a security answer and recovery code.
-- AI requests are tested with mocks. Run `python -m scripts.verify_gemini` with a test key to check live topic extraction, quiz generation, and cited tutoring against synthetic notes.
+- AI requests are tested with mocks. Run `python -m scripts.verify_groq` with a test key to check live topic extraction, quiz generation, and cited tutoring against synthetic notes.
 

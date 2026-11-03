@@ -2,7 +2,7 @@
 
 Turn exam goals, available time, and practice results into a study plan you can explain and adjust.
 
-Built by **Priti Kumari** with Python and Streamlit. Plan, review, and track progress in your own account; add optional Gemini assistance when you need help with your notes.
+Built by **Priti Kumari** with Python and Streamlit. Plan, review, and track progress in your own account; add optional Groq assistance when you need help with your notes.
 
 ![Python 3.12–3.14](https://img.shields.io/badge/Python-3.12%E2%80%933.14-3776AB?logo=python&logoColor=white)
 ![Streamlit 1.66.1](https://img.shields.io/badge/Streamlit-1.66.1-FF4B4B?logo=streamlit&logoColor=white)
@@ -25,7 +25,7 @@ The core planner runs locally without an API key. Scheduling uses transparent ru
 | Flexible planning | Schedule around multiple daily windows, breaks, days off, exam deadlines, and topic prerequisites. |
 | Adaptive revision | Record quizzes and completed, partial, or skipped sessions; update future priorities while preserving finished work. |
 | Practice and notes | Review flashcards, keep a mistake notebook, import PDF/text notes, and search source passages. |
-| Optional Gemini assistance | Review extracted topics, generate source-based quizzes with suggested difficulty, and ask questions about your notes. |
+| Optional Groq assistance | Review extracted topics, generate source-based quizzes with suggested difficulty, and ask questions about your notes. |
 | Progress and exports | Track study activity, use a focus timer, and export timetables to CSV/calendar or study records to JSON. |
 
 ## Tech stack
@@ -34,7 +34,7 @@ The core planner runs locally without an API key. Scheduling uses transparent ru
 | --- | --- |
 | Application | Python 3.12–3.14, Streamlit 1.66.1 |
 | Storage | SQLite locally; PostgreSQL with Psycopg when hosted |
-| Documents and AI | pypdf 6.21.4; optional Google Gemini API |
+| Documents and AI | pypdf 6.21.4; optional Groq API |
 | Hosting | Vercel Python Function with ASGI; static browser assets on its CDN |
 | Verification | Python unittest, Streamlit AppTest, GitHub Actions |
 
@@ -44,7 +44,7 @@ The core planner runs locally without an API key. Scheduling uses transparent ru
 flowchart LR
     Browser --> App[Python and Streamlit]
     App --> Data[SQLite or PostgreSQL]
-    App -. Optional requests .-> Gemini[Gemini API]
+    App -. Optional requests .-> Groq[Groq API]
 ```
 
 The Python application handles accounts, scheduling, practice, and document retrieval. Each account uses a separate local database file or PostgreSQL schema. The dashboard connects over WebSocket; hosted browser assets are delivered separately from application data.
@@ -73,18 +73,18 @@ For the smaller console edition, run `python python.py`. It allocates daily minu
 Export these variables before starting the dashboard:
 
 ```bash
-export GEMINI_API_KEY="your-key"
-export GEMINI_MODEL="gemini-2.5-flash"
+export GROQ_API_KEY="your-key"
+export GROQ_MODEL="llama-3.3-70b-versatile"
 python -m streamlit run app.py
 ```
 
-For PowerShell syntax and other settings, see the [User guide](docs/guide.md) and [environment example](.env.example). Environment files are not loaded automatically. AI requests send selected excerpts and, for adaptive quizzes, recent mistake text to Google; inspect generated answers against the source. Manual planning, recall checks, cards, and local search work without AI.
+For PowerShell syntax and other settings, see the [User guide](docs/guide.md) and [environment example](.env.example). Environment files are not loaded automatically. AI requests send selected excerpts and, for adaptive quizzes, recent mistake text to Groq; inspect generated answers against the source. Manual planning, recall checks, cards, and local search work without AI.
 
 Hosted setup requires `DATABASE_URL` and a database role that can create account schemas. Follow the [deployment guide](DEPLOYMENT.md), including browser-asset preparation before publishing. The hosted ASGI app resumes student sessions for up to 24 hours and saves the focus timer in the account.
 
 ## Try without an account
 
-Open `/test` on the hosted app. It opens a disposable planner that saves its records in the current browser profile. Use synthetic data and one test tab at a time. The test workspace exercises the planner without PostgreSQL or live Gemini. For a local equivalent, run `python -m uvicorn server:app` and visit `http://127.0.0.1:8000/test`.
+Open `/test` on the hosted app. It opens a disposable planner that saves its records in the current browser profile. Use synthetic data and one test tab at a time. The test workspace exercises the planner without PostgreSQL or live Groq. For a local equivalent, run `python -m uvicorn server:app` and visit `http://127.0.0.1:8000/test`.
 
 ## Try a study session
 

@@ -251,7 +251,7 @@ def practice_page(store):
                 store.add_card(topic["id"], question, answer, source)
                 flash("Card added to your review queue.")
     with tab_quiz:
-        st.caption("Optional: relevant note excerpts and recent mistake text are sent to Gemini when you generate questions. Check generated answers against the source.")
+        st.caption("Optional: relevant note excerpts and recent mistake text are sent to Groq when you generate questions. Check generated answers against the source.")
         topic = choose_topic(topics, "ai_quiz_topic")
         recommendation = next((item for item in recommendations(store) if item["topic"]["id"] == topic["id"]), None)
         level = recommendation["level"] if recommendation else "Standard"
@@ -287,7 +287,7 @@ def practice_page(store):
                     st.caption(question["source"])
                     st.caption("Source evidence: " + question["evidence"])
         if (store.browser_workspace or not ai.configured()):
-            st.info("AI is optional. See README for GEMINI_API_KEY setup. Manual quizzes and cards work now.")
+            st.info("AI is optional. See README for GROQ_API_KEY setup. Manual quizzes and cards work now.")
 
 
 def notes_page(store):
@@ -325,7 +325,7 @@ def notes_page(store):
             with st.expander(item["label"]):
                 st.text(item["text"])
     st.subheader("Syllabus → editable topics")
-    st.caption("Generating sends up to 30 note excerpts to Gemini. Review and edit every suggestion before importing.")
+    st.caption("Generating sends up to 30 note excerpts to Groq. Review and edit every suggestion before importing.")
     if st.button("Suggest topics from notes", disabled=(store.browser_workspace or not ai.configured()) or not docs):
         with st.spinner("Reading your syllabus…"):
             st.session_state["draft_topics"] = {"subject_id": subject["id"], "rows": ai.extract_topics(passages(docs)[:30])}
@@ -507,7 +507,7 @@ def test_workspace():
     st.sidebar.title("Test workspace")
     st.sidebar.caption("No sign-in required. Test records are stored in this browser profile.")
     st.sidebar.link_button("Back to sign in", "/")
-    st.sidebar.caption("Use one test tab at a time. Gemini is disabled in this public workspace.")
+    st.sidebar.caption("Use one test tab at a time. Groq is disabled in this public workspace.")
     if "test_store" not in st.session_state:
         result = load_workspace(key="test_load", on_snapshot_change=lambda: None)
         snapshot = result.get("snapshot")

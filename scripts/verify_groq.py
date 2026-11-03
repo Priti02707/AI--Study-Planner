@@ -6,8 +6,8 @@ from planner.materials import passages
 
 
 def main():
-    if not os.environ.get("GEMINI_API_KEY"):
-        raise SystemExit("Set GEMINI_API_KEY in your environment first.")
+    if not os.environ.get("GROQ_API_KEY"):
+        raise SystemExit("Set GROQ_API_KEY in your environment first.")
     sources = passages([{
         "id": 1,
         "name": "Synthetic QA notes",
@@ -18,13 +18,13 @@ def main():
         ],
     }])
     if not ai.extract_topics(sources):
-        raise RuntimeError("Gemini returned no valid topics.")
+        raise RuntimeError("Groq returned no valid topics.")
     if not ai.generate_quiz("Gradient descent", sources):
-        raise RuntimeError("Gemini returned no valid quiz questions.")
+        raise RuntimeError("Groq returned no valid quiz questions.")
     response = ai.tutor("What controls the size of each step in gradient descent?", sources)
     if not response["citations"]:
-        raise RuntimeError("Gemini returned no grounded citation.")
-    print("Live Gemini topic extraction, quiz, and cited tutoring passed.")
+        raise RuntimeError("Groq returned no grounded citation.")
+    print("Live Groq topic extraction, quiz, and cited tutoring passed.")
 
 
 if __name__ == "__main__":
