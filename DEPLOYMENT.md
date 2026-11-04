@@ -10,6 +10,8 @@
 - Database: Neon PostgreSQL, `ai-study-planner-db`, free plan, Singapore region.
 - Published from local source using the authenticated Vercel CLI. GitHub automatic deployment is not connected.
 
+The deployment ID and application commit above identify a previously verified release. For a new release, check that the Vercel deployment serves the intended `main` commit through the public alias, then run the release checks below.
+
 ## Opening the workspace
 
 Open the live URL and choose **Create account**. Enter your name, a username, and a password of at least 12 characters. Returning students choose **Sign in**. Each account has its own empty planner, and **Sign out** and **Change password** appear in the sidebar.
@@ -92,5 +94,7 @@ The function and database currently use Singapore to reduce database round trips
 References: [Streamlit ASGI release notes](https://docs.streamlit.io/develop/quick-reference/release-notes/2026), [Vercel Python entrypoints](https://vercel.com/docs/functions/runtimes/python), and [Vercel WebSocket support](https://vercel.com/changelog/websocket-support-is-now-in-public-beta).
 
 ### Release checks
+
+Verify `/api/health` and the normal planner first. In a disposable test account, sign in, refresh or reopen the app, and verify the saved subject and focus timer remain. Check password recovery with the account's security answer and one-time code, then confirm that the same code cannot be reused. Use an authorized test key for Groq; optional AI checks use synthetic notes.
 
 Run `python -m scripts.smoke_asgi` for the ASGI route, WebSocket session, and revoked-cookie checks. Open `/test` in the deployed app, create a sample subject, refresh, and verify it returns. In another browser profile verify the test planner starts empty. Test data lives in browser site storage and is processed transiently in memory on the server. Clearing site data removes it. The public test workspace disables Groq. Run `python -m scripts.verify_groq` separately with an authorized test key.

@@ -10,7 +10,7 @@ Built by **Priti Kumari** with Python and Streamlit. Plan, review, and track pro
 
 [Live app](https://ai-study-planner-lac.vercel.app) · [User guide](docs/guide.md) · [Deployment](DEPLOYMENT.md) · [Changelog](CHANGELOG.md)
 
-The recovery, browser-local test workspace, and Groq setup described below are included in [PR #2](https://github.com/Priti02707/AI--Study-Planner/pull/2). The live app reflects its deployed release.
+The recovery, browser-local test workspace, and Groq setup described below were merged into `main` in [PR #2](https://github.com/Priti02707/AI--Study-Planner/pull/2). The live app reflects its deployed release.
 
 ## Overview
 
